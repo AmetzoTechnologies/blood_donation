@@ -3,7 +3,8 @@ import 'package:blood_donation/Theme/AppColors.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../Controller/AuthController/AuthController.dart';
-import '../PasswordChangePage/PasswordChangePage.dart';
+import '../../Models/user_model/user.dart';
+import 'ProfileUpdatePage.dart';
 
 class ProfilePage extends StatelessWidget {
   ProfilePage({super.key});
@@ -12,191 +13,84 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = userModel?.user;
+
+    if (user == null) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    controller.googleIsDonor.value = user.isDonor ?? false;
+
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            /// 🔹 Top Header with user info
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                color: Colors.cyan,
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
-                ),
-              ),
-              child: SafeArea(
-                child: Column(
-                  children: [
-                    Align(
-                      alignment: Alignment.topRight,
-                      child: IconButton(
-                        icon: const Icon(Icons.logout, color: Colors.white),
-                        onPressed: () => controller.logout(),
-                      ),
-                    ),
-
-                    /// Profile Image
-                    CircleAvatar(
-                      radius: 50,
-                      child: ClipOval(
-                        child: Image.network(
-                          userModel!.user!.profilePic != null
-                              ? "${baseUrl}${userModel!.user!.profilePic}"
-                              : "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png",
-                          width: 100,
-                          height: 100,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Image.network(
-                              "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png",
-                              width: 100,
-                              height: 100,
-                              fit: BoxFit.cover,
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    Text(
-                      userModel!.user!.name ?? "User",
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      userModel!.user!.phone ?? "",
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.white70,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        "Blood Group: ${userModel!.user!.bloodGroup ?? '-'}",
-                        style: const TextStyle(
-                            fontSize: 14, color: Colors.white),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            /// 🔹 Info Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                children: [
-                  _buildInfoCard("Place", userModel!.user!.place ?? "-",
-                      Icons.location_on),
-                  _buildInfoCard(
-                    "Date of Birth",
-                    userModel!.user!.dateOfBirth != null
-                        ? userModel!.user!.dateOfBirth!
-                        .toLocal()
-                        .toString()
-                        .split(' ')[0]
-                        : "-",
-                    Icons.cake,
-                  ),
-                  _buildInfoCard(
-                      "Gender", userModel!.user!.gender ?? "-", Icons.person),
-                  _buildInfoCard("Donor Status",
-                      userModel!.user!.isDonor == true ? "Yes" : "No", Icons.favorite),
-                  _buildInfoCard(
-                    "Last Donation",
-                    userModel!.user!.lastDonationDate != null
-                        ? userModel!.user!.lastDonationDate!
-                        .toLocal()
-                        .toString()
-                        .split(' ')[0]
-                        : "-",
-                    Icons.bloodtype,
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            /// 🔹 Actions Section
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _buildActionTile(
-                    icon: Icons.lock,
-                    color: Colors.blue,
-                    title: "Change Password",
-                    onTap: () => Get.to(() => ChangePasswordPage()),
-                  ),
-                  _buildActionTile(
-                    icon: Icons.privacy_tip,
-                    color: Colors.green,
-                    title: "Privacy Policy",
-                    onTap: () {
-                      // Get.to(() => PrivacyPolicyPage());
-                    },
-                  ),
-                  _buildActionTile(
-                    icon: Icons.logout,
-                    color: Colors.red,
-                    title: "Logout",
-                    onTap: () => controller.logout(),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoCard(String title, String value, IconData icon) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.grey.shade200, spreadRadius: 2)],
-      ),
-      child: Row(
+      body: ListView(
+        padding: EdgeInsets.zero,
         children: [
-          Icon(icon, color: Colors.cyan, size: 28),
-          const SizedBox(width: 12),
-          Expanded(
+          _Header(user: user, onLogout: controller.logout),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 22, 18, 8),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey)),
-                const SizedBox(height: 4),
-                Text(value,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
+                _InfoTile(
+                  title: "Place",
+                  value: _value(user.place),
+                  icon: Icons.location_on_outlined,
+                ),
+                _InfoTile(
+                  title: "Blood Group",
+                  value: _value(user.bloodGroup),
+                  icon: Icons.bloodtype_outlined,
+                ),
+                _DonorAvailabilityTile(
+                  controller: controller,
+                ),
+                _InfoTile(
+                  title: "Gender",
+                  value: _value(user.gender),
+                  icon: Icons.person_outline,
+                ),
+                _InfoTile(
+                  title: "Date of Birth",
+                  value: user.dateOfBirth == null
+                      ? "-"
+                      : user.dateOfBirth!.toLocal().toString().split(' ')[0],
+                  icon: Icons.cake_outlined,
+                ),
+                _InfoTile(
+                  title: "Last Donation",
+                  value: user.lastDonationDate == null
+                      ? "-"
+                      : user.lastDonationDate!
+                          .toLocal()
+                          .toString()
+                          .split(' ')[0],
+                  icon: Icons.event_available_outlined,
+                ),
+                const SizedBox(height: 12),
+                _ActionTile(
+                  icon: Icons.edit_outlined,
+                  color: AppColors.primaryColor,
+                  title: "Edit Profile",
+                  onTap: () {
+                    controller.prefillProfileUpdate();
+                    Get.to(() => ProfileUpdatePage());
+                  },
+                ),
+                _ActionTile(
+                  icon: Icons.privacy_tip_outlined,
+                  color: Colors.green,
+                  title: "Privacy Policy",
+                  onTap: () {},
+                ),
+                _ActionTile(
+                  icon: Icons.logout,
+                  color: Colors.red,
+                  title: "Logout",
+                  onTap: controller.logout,
+                ),
               ],
             ),
           ),
@@ -205,23 +99,287 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildActionTile(
-      {required IconData icon,
-        required Color color,
-        required String title,
-        required VoidCallback onTap}) {
-    return Card(
-      color: Colors.cyan.shade100,
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: color.withOpacity(0.1),
-          child: Icon(icon, color: color),
+  String _value(String? value) {
+    return value == null || value.trim().isEmpty ? "-" : value;
+  }
+}
+
+class _Header extends StatelessWidget {
+  const _Header({required this.user, required this.onLogout});
+
+  final User user;
+  final VoidCallback onLogout;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 26),
+      decoration: BoxDecoration(
+        color: AppColors.primaryColor,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
         ),
-        title: Text(title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryColor.withOpacity(.26),
+            blurRadius: 20,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Align(
+              alignment: Alignment.topRight,
+              child: IconButton(
+                icon: const Icon(Icons.logout, color: Colors.white),
+                onPressed: onLogout,
+              ),
+            ),
+            CircleAvatar(
+              radius: 52,
+              backgroundColor: Colors.white,
+              child: ClipOval(
+                child: Image.network(
+                  _profileImage(user.profilePic),
+                  width: 96,
+                  height: 96,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Icon(
+                      Icons.person,
+                      color: Colors.grey,
+                      size: 54,
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              user.name ?? "User",
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              user.phone ?? "",
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(.22),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                "Blood Group: ${user.bloodGroup ?? '-'}",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _profileImage(String? profilePic) {
+    const fallback =
+        "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png";
+    if (profilePic == null || profilePic.isEmpty) {
+      return fallback;
+    }
+    if (profilePic.startsWith("http://") || profilePic.startsWith("https://")) {
+      return profilePic;
+    }
+    return "$baseUrl$profilePic";
+  }
+}
+
+class _DonorAvailabilityTile extends StatelessWidget {
+  const _DonorAvailabilityTile({required this.controller});
+
+  final AuthController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(
+      () => Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(.06),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              height: 42,
+              width: 42,
+              decoration: BoxDecoration(
+                color: AppColors.primaryColor.withOpacity(.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.volunteer_activism_outlined,
+                color: AppColors.primaryColor,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Available as donor",
+                    style: TextStyle(color: Colors.black45, fontSize: 13),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    controller.googleIsDonor.value
+                        ? "Available"
+                        : "Not available",
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            controller.isProfileUpdateLoading.value
+                ? SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.4,
+                      color: AppColors.primaryColor,
+                    ),
+                  )
+                : Switch(
+                    value: controller.googleIsDonor.value,
+                    activeColor: AppColors.primaryColor,
+                    onChanged: controller.updateDonorAvailability,
+                  ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoTile extends StatelessWidget {
+  const _InfoTile({
+    required this.title,
+    required this.value,
+    required this.icon,
+  });
+
+  final String title;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(.06),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 42,
+            width: 42,
+            decoration: BoxDecoration(
+              color: AppColors.primaryColor.withOpacity(.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: AppColors.primaryColor),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(color: Colors.black45, fontSize: 13),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionTile extends StatelessWidget {
+  const _ActionTile({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: AppColors.textFieldColor,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListTile(
+        leading: Icon(icon, color: color),
+        title: Text(
+          title,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        ),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 15),
         onTap: onTap,
       ),
     );

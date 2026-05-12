@@ -8,7 +8,7 @@ import 'package:blood_donation/Constant/Constant.dart';
 import '../../Constant/Constant.dart' as Constant;
 
 class HomePage extends StatelessWidget {
-// Example image
+  // Example image
 
   const HomePage({super.key});
 
@@ -60,24 +60,22 @@ class HomePage extends StatelessWidget {
                       children: [
                         CircleAvatar(
                           radius: 40,
-                          child:ClipOval(
-                              child: Image.network(
-                                userModel!.user!.profilePic != null
-                                    ? "${Constant.baseUrl}${userModel
-                                !.user!.profilePic}"
-                                    : "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png",
-                                width: 80,
-                                height: 80,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Image.network(
-                                    "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png",
-                                    width: 80,
-                                    height: 80,
-                                    fit: BoxFit.cover,
-                                  );
-                                },
-                              ),),
+                          backgroundColor: Colors.white,
+                          child: ClipOval(
+                            child: Image.network(
+                              _profileImage(userModel!.user!.profilePic),
+                              width: 96,
+                              height: 96,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(
+                                  Icons.person,
+                                  color: Colors.grey,
+                                  size: 54,
+                                );
+                              },
+                            ),
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Column(
@@ -239,5 +237,17 @@ class HomePage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _profileImage(String? profilePic) {
+    const fallback =
+        "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png";
+    if (profilePic == null || profilePic.isEmpty) {
+      return fallback;
+    }
+    if (profilePic.startsWith("http://") || profilePic.startsWith("https://")) {
+      return profilePic;
+    }
+    return "$baseUrl$profilePic";
   }
 }

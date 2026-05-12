@@ -5,8 +5,10 @@ import 'package:get/get_connect/connect.dart';
 
 class ApiService extends GetConnect {
   ApiService() {
-    // Set your base URL
-    baseUrl = "https://blooddonorapi-nyk3.onrender.com";
+    baseUrl = const String.fromEnvironment(
+      "API_BASE_URL",
+      defaultValue: "https://blood-donation-backend-6nz5.onrender.com",
+    );
   }
   Future<Response> getRequest(String endpoint, {String? bearerToken}) async {
     try {
@@ -80,6 +82,7 @@ class ApiService extends GetConnect {
     try {
       // Add headers
       final headers = {
+        'Content-Type': 'application/json',
         if (bearerToken != null) 'Authorization': 'Bearer $bearerToken',
       };
 
