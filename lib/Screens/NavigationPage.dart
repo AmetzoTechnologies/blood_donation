@@ -155,9 +155,7 @@ class NavigationPage extends StatelessWidget {
                           ),
                           onPressed: () {
                             Get.back();
-                            authController.updateLastDonationDate(
-                              selectedDate,
-                            );
+                            authController.updateLastDonationDate(selectedDate);
                           },
                           child: const Text(
                             "Save",
@@ -181,41 +179,35 @@ class NavigationPage extends StatelessWidget {
     return Scaffold(
       body: Obx(() => navController.pages[navController.selectedIndex.value]),
       // Floating Center Icon
-      floatingActionButton: Obx(
-        () {
-          final isUpdating = authController.isProfileUpdateLoading.value;
+      floatingActionButton: Obx(() {
+        final isUpdating = authController.isProfileUpdateLoading.value;
 
-          return SizedBox(
-            height: 70,
-            width: 70,
-            child: FloatingActionButton(
-              heroTag: "lastDonationDateButton",
-              backgroundColor: Colors.cyan,
-              elevation: 4,
-              shape: const CircleBorder(
-                side: BorderSide(color: Colors.white, width: 4),
-              ),
-              onPressed: isUpdating
-                  ? null
-                  : () => _showLastDonationDialog(context),
-              child: isUpdating
-                  ? const SizedBox(
-                      height: 26,
-                      width: 26,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 3,
-                      ),
-                    )
-                  : const Icon(
-                      Icons.water_drop,
-                      color: Colors.white,
-                      size: 32,
-                    ),
+        return SizedBox(
+          height: 70,
+          width: 70,
+          child: FloatingActionButton(
+            heroTag: "lastDonationDateButton",
+            backgroundColor: AppColors.primaryColor,
+            elevation: 4,
+            shape: const CircleBorder(
+              side: BorderSide(color: Colors.white, width: 4),
             ),
-          );
-        },
-      ),
+            onPressed: isUpdating
+                ? null
+                : () => _showLastDonationDialog(context),
+            child: isUpdating
+                ? const SizedBox(
+                    height: 26,
+                    width: 26,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 3,
+                    ),
+                  )
+                : const Icon(Icons.water_drop, color: Colors.white, size: 32),
+          ),
+        );
+      }),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: Obx(
         () => AnimatedBottomNavigationBar(
@@ -224,7 +216,7 @@ class NavigationPage extends StatelessWidget {
           gapLocation: GapLocation.center, // creates space for FAB
           notchSmoothness: NotchSmoothness.softEdge,
           backgroundColor: Colors.white,
-          activeColor: Colors.cyan,
+          activeColor: AppColors.primaryColor,
           inactiveColor: Colors.grey,
           onTap: (index) => navController.changePage(index),
         ),

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:get/get_connect/connect.dart';
 
@@ -54,11 +55,12 @@ class ApiService extends GetConnect {
       rethrow;
     }
   }
+
   Future<Response> putRequest(
-      String endpoint, {
-        dynamic data,
-        String? bearerToken,
-      }) async {
+    String endpoint, {
+    dynamic data,
+    String? bearerToken,
+  }) async {
     try {
       final headers = {
         if (bearerToken != null) 'Authorization': 'Bearer $bearerToken',
@@ -71,6 +73,39 @@ class ApiService extends GetConnect {
     } catch (e) {
       rethrow;
     }
+  }
+
+  Future<Response> putMultipartRequest(
+    String endpoint, {
+    Map<String, String> fields = const {},
+    Map<String, File> files = const {},
+    String? bearerToken,
+  }) async {
+    try {
+      final headers = {
+        if (bearerToken != null) 'Authorization': 'Bearer $bearerToken',
+      };
+      final formData = FormData({
+        ...fields,
+        ...files.map(
+          (key, value) =>
+              MapEntry(key, MultipartFile(value, filename: _fileName(value))),
+        ),
+      });
+
+      return await put(endpoint, formData, headers: headers);
+    } catch (e) {
+      debugPrint("Error in multipart PUT request: $e");
+      rethrow;
+    }
+  }
+
+  String _fileName(File file) {
+    final segments = file.uri.pathSegments;
+    if (segments.isNotEmpty) {
+      return Uri.decodeComponent(segments.last);
+    }
+    return file.path.split(Platform.pathSeparator).last;
   }
 
   Future<Response> postRequest(

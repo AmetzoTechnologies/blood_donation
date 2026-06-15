@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
 import '../../Controller/AuthController/AuthController.dart';
+import '../../GlobalWidgets/profile_upload_fields.dart';
 
 class GoogleProfilePage extends StatelessWidget {
   GoogleProfilePage({super.key});
@@ -150,6 +151,21 @@ class GoogleProfilePage extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               _GlassPanel(
+                title: "Uploads",
+                icon: Icons.cloud_upload_outlined,
+                child: Column(
+                  children: [
+                    ProfilePhotoPicker(controller: controller),
+                    const SizedBox(height: 12),
+                    ProofDocumentPicker(
+                      controller: controller,
+                      requireProof: true,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              _GlassPanel(
                 title: "Contact",
                 icon: Icons.call_outlined,
                 child: Column(
@@ -232,7 +248,9 @@ class GoogleProfilePage extends StatelessWidget {
               ),
               const SizedBox(height: 28),
               Obx(
-                () => controller.isGoogleProfileLoading.value
+                () =>
+                    controller.isGoogleProfileLoading.value ||
+                        controller.isMediaUploadLoading.value
                     ? Center(
                         child: CircularProgressIndicator(
                           color: AppColors.primaryColor,

@@ -7,7 +7,7 @@ class CustomDropdownField extends StatelessWidget {
   final String hintText;
   final List<String> items;
   final RxString selectedValue;
-  final String? Function(String?)? validator; // 👈 validation
+  final String? Function(String?)? validator;
 
   const CustomDropdownField({
     super.key,
@@ -28,12 +28,12 @@ class CustomDropdownField extends StatelessWidget {
           filled: true,
           fillColor: AppColors.textFieldColor,
           focusedBorder: OutlineInputBorder(
-            borderSide: const BorderSide(color: Colors.white),
-            borderRadius: BorderRadius.circular(5),
+            borderSide: const BorderSide(color: AppColors.primaryColor),
+            borderRadius: BorderRadius.circular(8),
           ),
           enabledBorder: OutlineInputBorder(
-            borderSide: const BorderSide(color: Colors.white),
-            borderRadius: BorderRadius.circular(5),
+            borderSide: const BorderSide(color: AppColors.borderColor),
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
         items: items
@@ -44,7 +44,7 @@ class CustomDropdownField extends StatelessWidget {
             selectedValue.value = value;
           }
         },
-        validator: validator, // 👈 attach validation
+        validator: validator,
       ),
     );
   }

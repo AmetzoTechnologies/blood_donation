@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
 import '../../Controller/AuthController/AuthController.dart';
+import '../../GlobalWidgets/profile_upload_fields.dart';
 
 class ProfileUpdatePage extends StatelessWidget {
   ProfileUpdatePage({super.key});
@@ -162,6 +163,18 @@ class ProfileUpdatePage extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               _GlassPanel(
+                title: "Uploads",
+                icon: Icons.cloud_upload_outlined,
+                child: Column(
+                  children: [
+                    ProfilePhotoPicker(controller: controller),
+                    const SizedBox(height: 12),
+                    ProofDocumentPicker(controller: controller),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              _GlassPanel(
                 title: "Donation",
                 icon: Icons.bloodtype_outlined,
                 child: Column(
@@ -182,7 +195,9 @@ class ProfileUpdatePage extends StatelessWidget {
               ),
               const SizedBox(height: 26),
               Obx(
-                () => controller.isProfileUpdateLoading.value
+                () =>
+                    controller.isProfileUpdateLoading.value ||
+                        controller.isMediaUploadLoading.value
                     ? Center(
                         child: CircularProgressIndicator(
                           color: AppColors.primaryColor,

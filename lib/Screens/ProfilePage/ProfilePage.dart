@@ -44,9 +44,7 @@ class ProfilePage extends StatelessWidget {
                   value: _value(user.bloodGroup),
                   icon: Icons.bloodtype_outlined,
                 ),
-                _DonorAvailabilityTile(
-                  controller: controller,
-                ),
+                _DonorAvailabilityTile(controller: controller),
                 _InfoTile(
                   title: "Gender",
                   value: _value(user.gender),
@@ -63,10 +61,9 @@ class ProfilePage extends StatelessWidget {
                   title: "Last Donation",
                   value: user.lastDonationDate == null
                       ? "-"
-                      : user.lastDonationDate!
-                          .toLocal()
-                          .toString()
-                          .split(' ')[0],
+                      : user.lastDonationDate!.toLocal().toString().split(
+                          ' ',
+                        )[0],
                   icon: Icons.event_available_outlined,
                 ),
                 const SizedBox(height: 12),

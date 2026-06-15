@@ -208,10 +208,7 @@ class FindDonorsPage extends StatelessWidget {
                     );
   }
   Future<void> callNumber(String phoneNumber) async {
-    final Uri launchUri = Uri(
-      scheme: 'tel',
-      path: phoneNumber,
-    );
+    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
 
     if (await canLaunchUrl(launchUri)) {
       await launchUrl(

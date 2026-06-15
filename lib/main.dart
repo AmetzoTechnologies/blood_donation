@@ -1,4 +1,3 @@
-import 'package:blood_donation/Screens/LoginPage/PhoneLoginPage.dart';
 import 'package:blood_donation/Screens/SplashScreen/SplashScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';

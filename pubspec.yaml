@@ -36,6 +36,7 @@ dependencies:
   shared_preferences: ^2.5.3
   url_launcher: ^6.3.0
   google_sign_in: ^6.2.2
+  file_picker: ^10.2.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -62,6 +63,11 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/images/bloodmate_logo.png
+    - assets/images/bloodmate_favicon.png
+    - assets/images/blood_drop.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

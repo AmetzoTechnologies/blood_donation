@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:blood_donation/Constant/Constant.dart';
 import 'package:blood_donation/Models/user_model/user_model.dart';
 import 'package:blood_donation/Screens/NavigationPage.dart';
 import 'package:blood_donation/Service/ApiService.dart';
 import 'package:blood_donation/Theme/AppColors.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -25,6 +27,9 @@ class AuthController extends GetxController {
   RxBool googleIsDonor = true.obs;
   Rxn<DateTime> googleDateOfBirth = Rxn<DateTime>();
   Rxn<DateTime> googleLastDonationDate = Rxn<DateTime>();
+  Rxn<File> selectedProfilePic = Rxn<File>();
+  Rxn<File> proofFrontFile = Rxn<File>();
+  Rxn<File> proofBackFile = Rxn<File>();
   final ApiService _apiService = ApiService();
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email'],
@@ -34,6 +39,7 @@ class AuthController extends GetxController {
   RxBool isLoading = false.obs;
   RxBool isGoogleProfileLoading = false.obs;
   RxBool isProfileUpdateLoading = false.obs;
+  RxBool isMediaUploadLoading = false.obs;
 
   Future<void> checkAuth() async {
     isLoading.value = true;
@@ -325,6 +331,7 @@ class AuthController extends GetxController {
     googleDateOfBirth.value = user?.dateOfBirth;
     googleLastDonationDate.value = user?.lastDonationDate;
     googleIsDonor.value = user?.isDonor ?? true;
+    clearPendingUploads();
   }
 
   String _displayValue(String? value) {
@@ -336,10 +343,108 @@ class AuthController extends GetxController {
     return lower[0].toUpperCase() + lower.substring(1);
   }
 
+  String? get savedProfilePicUrl {
+    final profilePic = userModel?.user?.profilePic;
+    if (profilePic == null || profilePic.trim().isEmpty) {
+      return null;
+    }
+    if (profilePic.startsWith("http://") || profilePic.startsWith("https://")) {
+      return profilePic;
+    }
+    return "$baseUrl/${profilePic.replaceFirst(RegExp(r'^/+'), '')}";
+  }
+
+  String fileName(File? file) {
+    if (file == null) {
+      return "";
+    }
+    final segments = file.uri.pathSegments;
+    if (segments.isNotEmpty) {
+      return Uri.decodeComponent(segments.last);
+    }
+    return file.path.split(Platform.pathSeparator).last;
+  }
+
+  Future<void> pickProfilePic() async {
+    final file = await _pickFile(type: FileType.image);
+    if (file != null) {
+      selectedProfilePic.value = file;
+    }
+  }
+
+  Future<void> pickProofFront() async {
+    final file = await _pickProofFile();
+    if (file != null) {
+      proofFrontFile.value = file;
+    }
+  }
+
+  Future<void> pickProofBack() async {
+    final file = await _pickProofFile();
+    if (file != null) {
+      proofBackFile.value = file;
+    }
+  }
+
+  void clearSelectedProfilePic() {
+    selectedProfilePic.value = null;
+  }
+
+  void clearProofFront() {
+    proofFrontFile.value = null;
+  }
+
+  void clearProofBack() {
+    proofBackFile.value = null;
+  }
+
+  void clearPendingUploads() {
+    selectedProfilePic.value = null;
+    proofFrontFile.value = null;
+    proofBackFile.value = null;
+  }
+
+  Future<File?> _pickProofFile() {
+    return _pickFile(
+      type: FileType.custom,
+      allowedExtensions: const ["jpg", "jpeg", "png", "pdf"],
+    );
+  }
+
+  Future<File?> _pickFile({
+    required FileType type,
+    List<String>? allowedExtensions,
+  }) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: type,
+        allowedExtensions: allowedExtensions,
+        allowMultiple: false,
+      );
+      final path = result?.files.single.path;
+      if (path == null || path.isEmpty) {
+        return null;
+      }
+      return File(path);
+    } catch (e) {
+      debugPrint("File picker error: $e");
+      Get.snackbar(
+        "File selection failed",
+        e.toString(),
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return null;
+    }
+  }
+
   Future<void> completeGoogleProfile() async {
     const endpoint = "/api/v1/user/google-complete-profile";
     isGoogleProfileLoading.value = true;
     try {
+      if (!_validateRequiredProofSelection()) {
+        return;
+      }
+
       final data = _googleProfileData();
 
       print("Complete profile request: $data");
@@ -356,6 +461,10 @@ class AuthController extends GetxController {
         userModel = UserModel.fromJson(response.body);
         if (userModel?.user?.isDonor != googleIsDonor.value) {
           await _syncGoogleProfileDetails(data);
+        }
+        final filesUploaded = await _uploadSelectedMediaIfNeeded();
+        if (!filesUploaded) {
+          return;
         }
         final hasUserData = await getUserData();
         if (!hasUserData) {
@@ -410,13 +519,11 @@ class AuthController extends GetxController {
     try {
       print("Sync profile update request: $data");
       final response = await _apiService
-          .putRequest(
-            "/api/v1/user/update",
-            data: data,
-            bearerToken: token,
-          )
+          .putRequest("/api/v1/user/update", data: data, bearerToken: token)
           .timeout(const Duration(seconds: 25));
-      print("Sync profile update response: ${response.statusCode} ${response.body}");
+      print(
+        "Sync profile update response: ${response.statusCode} ${response.body}",
+      );
     } catch (e) {
       print("Sync profile update error: $e");
     }
@@ -433,12 +540,17 @@ class AuthController extends GetxController {
     googleDateOfBirth.value = user?.dateOfBirth;
     googleLastDonationDate.value = user?.lastDonationDate;
     googleIsDonor.value = user?.isDonor ?? false;
+    clearPendingUploads();
   }
 
   Future<void> updateProfile() async {
     const endpoint = "/api/v1/user/update";
     isProfileUpdateLoading.value = true;
     try {
+      if (!_validateProofSelection()) {
+        return;
+      }
+
       final user = userModel?.user;
       final data = {
         "name": googleName.text.trim(),
@@ -459,6 +571,10 @@ class AuthController extends GetxController {
       print("Profile update response: ${response.statusCode} ${response.body}");
 
       if (response.isOk) {
+        final filesUploaded = await _uploadSelectedMediaIfNeeded();
+        if (!filesUploaded) {
+          return;
+        }
         final hasUserData = await getUserData();
         if (!hasUserData) {
           Get.offAll(() => PhoneLoginPage());
@@ -482,6 +598,110 @@ class AuthController extends GetxController {
       _showAuthError("Profile update failed", e.toString());
     } finally {
       isProfileUpdateLoading.value = false;
+    }
+  }
+
+  bool _validateProofSelection() {
+    final hasFront = proofFrontFile.value != null;
+    final hasBack = proofBackFile.value != null;
+    if (hasFront == hasBack) {
+      return true;
+    }
+
+    _showAuthError(
+      "Proof documents incomplete",
+      "Please select both proof front and proof back files.",
+    );
+    return false;
+  }
+
+  bool _validateRequiredProofSelection() {
+    final hasFront = proofFrontFile.value != null;
+    final hasBack = proofBackFile.value != null;
+    if (hasFront && hasBack) {
+      return true;
+    }
+
+    _showAuthError(
+      "ID proof required",
+      "Please upload ID proof front and back.",
+    );
+    return false;
+  }
+
+  Future<bool> _uploadSelectedMediaIfNeeded() async {
+    final profilePic = selectedProfilePic.value;
+    final proofFront = proofFrontFile.value;
+    final proofBack = proofBackFile.value;
+
+    if (profilePic == null && proofFront == null && proofBack == null) {
+      return true;
+    }
+
+    isMediaUploadLoading.value = true;
+    try {
+      if (profilePic != null) {
+        debugPrint("Profile photo upload request: ${profilePic.path}");
+        final response = await _apiService
+            .putMultipartRequest(
+              "/api/v1/user/update",
+              files: {"profilePic": profilePic},
+              bearerToken: token,
+            )
+            .timeout(const Duration(seconds: 30));
+
+        debugPrint(
+          "Profile photo upload response: ${response.statusCode} ${response.body}",
+        );
+
+        if (!response.isOk) {
+          _showAuthError(
+            "Profile photo upload failed",
+            _messageFromResponse(response.body, response.statusCode),
+          );
+          return false;
+        }
+      }
+
+      if (proofFront != null && proofBack != null) {
+        debugPrint(
+          "Proof upload request: ${proofFront.path}, ${proofBack.path}",
+        );
+        final response = await _apiService
+            .putMultipartRequest(
+              "/api/v1/user/upload-proof",
+              files: {"proofFront": proofFront, "proofBack": proofBack},
+              bearerToken: token,
+            )
+            .timeout(const Duration(seconds: 30));
+
+        debugPrint(
+          "Proof upload response: ${response.statusCode} ${response.body}",
+        );
+
+        if (!response.isOk) {
+          _showAuthError(
+            "Proof upload failed",
+            _messageFromResponse(response.body, response.statusCode),
+          );
+          return false;
+        }
+      }
+
+      clearPendingUploads();
+      return true;
+    } on TimeoutException {
+      _showAuthError(
+        "Upload timed out",
+        "The app did not get a response while uploading your files.",
+      );
+      return false;
+    } catch (e) {
+      debugPrint("Media upload error: $e");
+      _showAuthError("Upload failed", e.toString());
+      return false;
+    } finally {
+      isMediaUploadLoading.value = false;
     }
   }
 

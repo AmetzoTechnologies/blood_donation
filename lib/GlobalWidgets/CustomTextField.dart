@@ -7,7 +7,7 @@ class CustomTextField extends StatelessWidget {
   final IconData prefixIcon;
   final TextEditingController controller;
   final String? Function(String?)? validator;
-  final Function(String)? onSubmitted;// 👈 add validator
+  final Function(String)? onSubmitted;
 
   const CustomTextField({
     super.key,
@@ -16,14 +16,13 @@ class CustomTextField extends StatelessWidget {
     this.obscureText = false,
     required this.controller,
     this.validator,
-    this.onSubmitted// 👈 optional
+    this.onSubmitted,
   });
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       onFieldSubmitted: onSubmitted,
-      // 👈 change to TextFormField
       controller: controller,
       obscureText: obscureText,
       validator: validator,
@@ -32,14 +31,25 @@ class CustomTextField extends StatelessWidget {
         hintText: hintText,
         filled: true,
         fillColor: AppColors.textFieldColor,
-        contentPadding: const EdgeInsets.symmetric(vertical: 15),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 15,
+          horizontal: 14,
+        ),
         focusedBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: Colors.white),
-          borderRadius: BorderRadius.circular(5),
+          borderSide: const BorderSide(color: AppColors.primaryColor),
+          borderRadius: BorderRadius.circular(8),
         ),
         enabledBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: Colors.white),
-          borderRadius: BorderRadius.circular(5),
+          borderSide: const BorderSide(color: AppColors.borderColor),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderSide: const BorderSide(color: AppColors.primaryColor),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderSide: const BorderSide(color: AppColors.primaryColor),
+          borderRadius: BorderRadius.circular(8),
         ),
       ),
     );
