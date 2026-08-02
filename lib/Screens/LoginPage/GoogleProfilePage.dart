@@ -6,11 +6,21 @@ import 'package:intl/intl.dart';
 import '../../Controller/AuthController/AuthController.dart';
 import '../../GlobalWidgets/profile_upload_fields.dart';
 
-class GoogleProfilePage extends StatelessWidget {
-  GoogleProfilePage({super.key});
+class GoogleProfilePage extends StatefulWidget {
+  const GoogleProfilePage({super.key});
 
+  @override
+  State<GoogleProfilePage> createState() => _GoogleProfilePageState();
+}
+
+class _GoogleProfilePageState extends State<GoogleProfilePage> {
   final AuthController controller = Get.find<AuthController>();
   final _formKey = GlobalKey<FormState>();
+  final _scrollController = ScrollController();
+  final _genderKey = GlobalKey();
+
+  String? _genderError;
+  String? _bloodGroupError;
 
   static const List<String> _bloodGroups = [
     "A+",
@@ -25,6 +35,12 @@ class GoogleProfilePage extends StatelessWidget {
 
   static const List<String> _genders = ["Male", "Female", "Other"];
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickDate(BuildContext context, bool isDob) async {
     final initialDate = isDob
         ? controller.googleDateOfBirth.value ?? DateTime(2000)
@@ -38,12 +54,70 @@ class GoogleProfilePage extends StatelessWidget {
     );
 
     if (picked != null) {
-      if (isDob) {
-        controller.googleDateOfBirth.value = picked;
-      } else {
-        controller.googleLastDonationDate.value = picked;
-      }
+      setState(() {
+        if (isDob) {
+          controller.googleDateOfBirth.value = picked;
+        } else {
+          controller.googleLastDonationDate.value = picked;
+        }
+      });
     }
+  }
+
+  void _showMissingDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Missing details"),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              "OK",
+              style: TextStyle(color: AppColors.primaryColor),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _scrollToGender() {
+    final genderContext = _genderKey.currentContext;
+    if (genderContext != null) {
+      Scrollable.ensureVisible(
+        genderContext,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        alignment: 0.1,
+      );
+    }
+  }
+
+  void _onSavePressed() {
+    final formValid = _formKey.currentState?.validate() ?? false;
+    final genderMissing = controller.googleGender.value.trim().isEmpty;
+    final bloodMissing = controller.googleBloodGroup.value.trim().isEmpty;
+
+    setState(() {
+      _genderError = genderMissing ? "Please select a gender" : null;
+      _bloodGroupError = bloodMissing ? "Please select a blood group" : null;
+    });
+
+    if (genderMissing || bloodMissing || !formValid) {
+      if (genderMissing) {
+        _scrollToGender();
+        _showMissingDialog("Please select a gender to continue.");
+      } else if (bloodMissing) {
+        _showMissingDialog("Please select a blood group to continue.");
+      } else {
+        _showMissingDialog("Please fill all required fields.");
+      }
+      return;
+    }
+
+    controller.completeGoogleProfile();
   }
 
   @override
@@ -68,11 +142,11 @@ class GoogleProfilePage extends StatelessWidget {
         child: Form(
           key: _formKey,
           child: ListView(
+            controller: _scrollController,
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
             children: [
               Container(
                 padding: const EdgeInsets.all(18),
-
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
                   color: AppColors.primaryColor,
@@ -141,10 +215,18 @@ class GoogleProfilePage extends StatelessWidget {
                           : null,
                     ),
                     const SizedBox(height: 12),
-                    _ChoiceRow(
-                      label: "Gender",
-                      values: _genders,
-                      selected: controller.googleGender,
+                    KeyedSubtree(
+                      key: _genderKey,
+                      child: _ChoiceRow(
+                        label: "Gender",
+                        values: _genders,
+                        selected: controller.googleGender,
+                        showLabel: true,
+                        errorText: _genderError,
+                        onSelected: () {
+                          setState(() => _genderError = null);
+                        },
+                      ),
                     ),
                   ],
                 ),
@@ -233,6 +315,10 @@ class GoogleProfilePage extends StatelessWidget {
                     _BloodGroupPicker(
                       bloodGroups: _bloodGroups,
                       selected: controller.googleBloodGroup,
+                      errorText: _bloodGroupError,
+                      onSelected: () {
+                        setState(() => _bloodGroupError = null);
+                      },
                     ),
                     const SizedBox(height: 18),
                     _DonorSwitch(controller: controller),
@@ -266,13 +352,7 @@ class GoogleProfilePage extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        onPressed: () {
-                          if (_formKey.currentState!.validate() &&
-                              controller.googleGender.value.isNotEmpty &&
-                              controller.googleBloodGroup.value.isNotEmpty) {
-                            controller.completeGoogleProfile();
-                          }
-                        },
+                        onPressed: _onSavePressed,
                         child: const Text(
                           "Save Profile",
                           style: TextStyle(
@@ -385,117 +465,54 @@ class _ChoiceRow extends StatelessWidget {
     required this.label,
     required this.values,
     required this.selected,
+    this.showLabel = false,
+    this.errorText,
+    this.onSelected,
   });
 
   final String label;
   final List<String> values;
   final RxString selected;
+  final bool showLabel;
+  final String? errorText;
+  final VoidCallback? onSelected;
 
   @override
   Widget build(BuildContext context) {
-    return FormField<String>(
-      validator: (_) => selected.value.isEmpty ? "$label is required" : null,
-      builder: (field) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Obx(
-              () => Row(
-                children: values.map((value) {
-                  final isSelected = selected.value == value;
-                  return Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                        right: value == values.last ? 0 : 8,
-                      ),
-                      child: InkWell(
-                        onTap: () {
-                          selected.value = value;
-                          field.didChange(value);
-                        },
-                        borderRadius: BorderRadius.circular(8),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 160),
-                          height: 48,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppColors.primaryColor
-                                : AppColors.textFieldColor,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: isSelected
-                                  ? AppColors.primaryColor
-                                  : Colors.white,
-                            ),
-                          ),
-                          child: Text(
-                            value,
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.black54,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
+    final hasError = errorText != null && errorText!.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (showLabel) ...[
+          Text(
+            label,
+            style: TextStyle(
+              color: hasError ? Colors.redAccent : Colors.black87,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
             ),
-            if (field.errorText != null)
-              Padding(
-                padding: const EdgeInsets.only(left: 12, top: 6),
-                child: Text(
-                  field.errorText!,
-                  style: const TextStyle(color: Colors.redAccent, fontSize: 12),
-                ),
-              ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _BloodGroupPicker extends StatelessWidget {
-  const _BloodGroupPicker({required this.bloodGroups, required this.selected});
-
-  final List<String> bloodGroups;
-  final RxString selected;
-
-  @override
-  Widget build(BuildContext context) {
-    return FormField<String>(
-      validator: (_) =>
-          selected.value.isEmpty ? "Blood group is required" : null,
-      builder: (field) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Obx(() {
-              final selectedBloodGroup = selected.value;
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: bloodGroups.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  childAspectRatio: 1.55,
-                ),
-                itemBuilder: (context, index) {
-                  final value = bloodGroups[index];
-                  final isSelected = selectedBloodGroup == value;
-                  return InkWell(
+          ),
+          const SizedBox(height: 8),
+        ],
+        Obx(
+          () => Row(
+            children: values.map((value) {
+              final isSelected = selected.value == value;
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    right: value == values.last ? 0 : 8,
+                  ),
+                  child: InkWell(
                     onTap: () {
                       selected.value = value;
-                      field.didChange(value);
+                      onSelected?.call();
                     },
                     borderRadius: BorderRadius.circular(8),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 160),
+                      height: 48,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: isSelected
@@ -503,35 +520,138 @@ class _BloodGroupPicker extends StatelessWidget {
                             : AppColors.textFieldColor,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: isSelected
+                          color: hasError && !isSelected
+                              ? Colors.redAccent
+                              : isSelected
                               ? AppColors.primaryColor
                               : Colors.white,
+                          width: hasError && !isSelected ? 1.5 : 1,
                         ),
                       ),
                       child: Text(
                         value,
                         style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.black87,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
+                          color: isSelected ? Colors.white : Colors.black54,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
-                  );
-                },
-              );
-            }),
-            if (field.errorText != null)
-              Padding(
-                padding: const EdgeInsets.only(left: 12, top: 6),
-                child: Text(
-                  field.errorText!,
-                  style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                  ),
                 ),
+              );
+            }).toList(),
+          ),
+        ),
+        if (hasError)
+          Padding(
+            padding: const EdgeInsets.only(left: 4, top: 8),
+            child: Text(
+              errorText!,
+              style: const TextStyle(
+                color: Colors.redAccent,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
               ),
-          ],
-        );
-      },
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _BloodGroupPicker extends StatelessWidget {
+  const _BloodGroupPicker({
+    required this.bloodGroups,
+    required this.selected,
+    this.errorText,
+    this.onSelected,
+  });
+
+  final List<String> bloodGroups;
+  final RxString selected;
+  final String? errorText;
+  final VoidCallback? onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasError = errorText != null && errorText!.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "Blood Group",
+          style: TextStyle(
+            color: hasError ? Colors.redAccent : Colors.black87,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Obx(() {
+          final selectedBloodGroup = selected.value;
+          return GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: bloodGroups.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 1.55,
+            ),
+            itemBuilder: (context, index) {
+              final value = bloodGroups[index];
+              final isSelected = selectedBloodGroup == value;
+              return InkWell(
+                onTap: () {
+                  selected.value = value;
+                  onSelected?.call();
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primaryColor
+                        : AppColors.textFieldColor,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: hasError && !isSelected
+                          ? Colors.redAccent
+                          : isSelected
+                          ? AppColors.primaryColor
+                          : Colors.white,
+                      width: hasError && !isSelected ? 1.5 : 1,
+                    ),
+                  ),
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black87,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        }),
+        if (hasError)
+          Padding(
+            padding: const EdgeInsets.only(left: 4, top: 8),
+            child: Text(
+              errorText!,
+              style: const TextStyle(
+                color: Colors.redAccent,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

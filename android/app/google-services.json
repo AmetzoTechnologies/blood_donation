@@ -1,0 +1,63 @@
+{
+  "project_info": {
+    "project_number": "354622519459",
+    "project_id": "bloodmate-6d726",
+    "storage_bucket": "bloodmate-6d726.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:354622519459:android:e66dc211b5af79c231a716",
+        "android_client_info": {
+          "package_name": "com.amtzo.blood_donation"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "354622519459-hruj1mfakbsd2d02j7m3hoki2m0403vs.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.amtzo.blood_donation",
+            "certificate_hash": "38a950647e1f85d71aa88cf26549ec39f4661563"
+          }
+        },
+        {
+          "client_id": "354622519459-kskfj26vaductevgcc8v6ei8c6kvc3ji.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.amtzo.blood_donation",
+            "certificate_hash": "c9035d3987701e278a53b3a879157c1896e7da01"
+          }
+        },
+        {
+          "client_id": "354622519459-s1olrqgej230kt24c2mp8iih5t4fkvo0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.amtzo.blood_donation",
+            "certificate_hash": "c42593579cbfa871caed3c7fefa7974cdd37f02a"
+          }
+        },
+        {
+          "client_id": "354622519459-ld4snk9mrq369vt5qgblp9u3nm9q5rs3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDn1k7OolvW60jTsQq4YN01IDGphIxntRA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "354622519459-ld4snk9mrq369vt5qgblp9u3nm9q5rs3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

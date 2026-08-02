@@ -8,8 +8,9 @@ class ApiService extends GetConnect {
   ApiService() {
     baseUrl = const String.fromEnvironment(
       "API_BASE_URL",
-      defaultValue: "https://blood-donation-backend-6nz5.onrender.com",
+      defaultValue: "https://bloodapi.anazko.com",
     );
+    httpClient.timeout = const Duration(seconds: 30);
   }
   Future<Response> getRequest(String endpoint, {String? bearerToken}) async {
     try {

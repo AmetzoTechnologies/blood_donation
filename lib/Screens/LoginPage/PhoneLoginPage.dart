@@ -7,7 +7,7 @@ import '../../Theme/AppColors.dart';
 class PhoneLoginPage extends StatelessWidget {
   PhoneLoginPage({super.key});
 
-  final AuthController controller = Get.put(AuthController());
+  final AuthController controller = Get.find<AuthController>();
 
   @override
   Widget build(BuildContext context) {
@@ -30,16 +30,16 @@ class PhoneLoginPage extends StatelessWidget {
                         fit: BoxFit.contain,
                       ),
                       const SizedBox(height: 22),
-                      const Text(
-                        "Connecting donors, saving lives",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: AppColors.bodyTextColor,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
+                      // const Text(
+                      //   "Connecting donors, saving lives",
+                      //   textAlign: TextAlign.center,
+                      //   style: TextStyle(
+                      //     color: AppColors.bodyTextColor,
+                      //     fontSize: 22,
+                      //     fontWeight: FontWeight.w800,
+                      //   ),
+                      // ),
+                      // const SizedBox(height: 10),
                       const Text(
                         "Sign in to find donors faster and keep your donation profile ready.",
                         textAlign: TextAlign.center,

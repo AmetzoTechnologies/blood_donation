@@ -1,10 +1,11 @@
 import 'package:blood_donation/GlobalWidgets/CustomTextField.dart';
+import 'package:blood_donation/GlobalWidgets/DonorAvatar.dart';
 import 'package:blood_donation/Models/blood_donors/donor.dart';
+import 'package:blood_donation/Screens/FindDonorPage/DonorDetailPage.dart';
 import 'package:blood_donation/Theme/AppColors.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../Constant/Constant.dart';
 import '../../Controller/DonatorController/DonatorController.dart';
 import 'package:get/get.dart';
 class FindDonorsPage extends StatelessWidget {
@@ -109,103 +110,99 @@ class FindDonorsPage extends StatelessWidget {
     );
   }
 
-  Container buildDonorCard(Donor donor) {
-    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.1),
-                            spreadRadius: 2,
-                            blurRadius: 6,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
+  Widget buildDonorCard(Donor donor) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => Get.to(() => DonorDetailPage(donor: donor)),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 2,
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            DonorAvatar(
+              name: donor.name,
+              profilePic: donor.profilePic,
+              size: 72,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    donor.name ?? '',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on,
+                        size: 16,
+                        color: Colors.blue,
                       ),
-                      child: Row(
-                        children: [
-                          // Profile Image
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: Image.network(
-                              donor.profilePic != null
-                                  ? "${baseUrl}${donor.profilePic}"
-                                  : "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png",
-                              height: 80,
-                              width: 80,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                // fallback if URL is invalid / not loading
-                                return Image.network(
-                                  "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png",
-                                  height: 80,
-                                  width: 80,
-                                  fit: BoxFit.cover,
-                                );
-                              },
-                            ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          donor.place ?? '',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
                           ),
-
-                          const SizedBox(width: 12),
-
-                          // Name + Location
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  donor.name ?? "",
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 5),
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.location_on,
-                                      size: 16,
-                                      color: Colors.blue,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Flexible(
-                                      child: Text(
-                                        donor.place ?? "",
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // Call Button
-                          InkWell(
-                            onTap: (){
-                              callNumber(donor.phone!);
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: const BoxDecoration(
-                                color: Colors.cyan,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.phone,
-                                  color: Colors.white),
-                            ),
-                          ),
-                        ],
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    );
+                    ],
+                  ),
+                  if (donor.bloodGroup != null &&
+                      donor.bloodGroup!.trim().isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      donor.bloodGroup!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.primaryColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            InkWell(
+              onTap: () {
+                if (donor.phone != null && donor.phone!.trim().isNotEmpty) {
+                  callNumber(donor.phone!.trim());
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: const BoxDecoration(
+                  color: Colors.cyan,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.phone, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
   Future<void> callNumber(String phoneNumber) async {
     final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);

@@ -133,26 +133,34 @@ class _HomeHero extends StatelessWidget {
           Positioned.fill(
             child: CustomPaint(painter: _HeroBackgroundPainter()),
           ),
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 22, 24, 0),
-              child: const Align(
-                alignment: Alignment.topLeft,
-                child: _HeroBrand(),
+
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 22, 24, 0),
+                child: Stack(
+                  alignment: Alignment.topCenter,
+                  children: const [
+                    Align(alignment: Alignment.topLeft, child: _HeroBrand()),
+                  ],
+                ),
               ),
             ),
           ),
-          Positioned(right: 36, top: 116, child: _HeroDrop()),
+          Positioned(
+            right: 36,
+            top: 116,
+            child: _HeroDrop(bloodGroup: bloodGroup),
+          ),
           Positioned(
             left: 24,
             right: 24,
             bottom: 0,
-            child: _ProfileCard(
-              name: name,
-              bloodGroup: bloodGroup,
-              profilePic: profilePic,
-            ),
+            child: _ProfileCard(name: name, profilePic: profilePic),
           ),
         ],
       ),
@@ -170,49 +178,49 @@ class _HeroBrand extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Image.asset(
-          "assets/images/bloodmate_favicon.png",
-          width: 72,
-          height: 62,
+          "assets/images/bloodmate_logo.png",
+          width: 112,
+          height: 112,
           fit: BoxFit.contain,
         ),
-        RichText(
-          text: const TextSpan(
-            children: [
-              TextSpan(
-                text: "Blood",
-                style: TextStyle(
-                  color: _bloodmateRed,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              TextSpan(
-                text: "mate",
-                style: TextStyle(
-                  color: _bloodmateCyan,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-        ),
         const SizedBox(height: 1),
-        SizedBox(
-          width: 156,
-          height: 15,
-          child: CustomPaint(painter: _BrandEcgPainter()),
-        ),
-        const SizedBox(height: 1),
-        const Text(
-          "MVL MANJAPPATTA",
+        Text(
+          "MYL MANHAPPATTA",
           style: TextStyle(
             color: _bloodmateCyan,
-            fontSize: 9,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.8,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
           ),
         ),
+        // RichText(
+        //   text: const TextSpan(
+        //     children: [
+        //       TextSpan(
+        //         text: "Blood",
+        //         style: TextStyle(
+        //           color: _bloodmateRed,
+        //           fontSize: 28,
+        //           fontWeight: FontWeight.w900,
+        //         ),
+        //       ),
+        //       TextSpan(
+        //         text: "mate",
+        //         style: TextStyle(
+        //           color: _bloodmateCyan,
+        //           fontSize: 28,
+        //           fontWeight: FontWeight.w900,
+        //         ),
+        //       ),
+        //     ],
+        //   ),
+        // ),
+        // const SizedBox(height: 1),
+        // SizedBox(
+        //   width: 156,
+        //   height: 15,
+        //   child: CustomPaint(painter: _BrandEcgPainter()),
+        // ),
+        const SizedBox(height: 1),
       ],
     );
   }
@@ -245,12 +253,36 @@ class _BrandEcgPainter extends CustomPainter {
 }
 
 class _HeroDrop extends StatelessWidget {
+  const _HeroDrop({required this.bloodGroup});
+
+  final String bloodGroup;
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 92,
       width: 72,
-      child: CustomPaint(painter: _DropPainter()),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(child: CustomPaint(painter: _DropPainter())),
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                bloodGroup,
+                maxLines: 1,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -335,14 +367,9 @@ class _DropPainter extends CustomPainter {
 }
 
 class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({
-    required this.name,
-    required this.bloodGroup,
-    required this.profilePic,
-  });
+  const _ProfileCard({required this.name, required this.profilePic});
 
   final String name;
-  final String bloodGroup;
   final String? profilePic;
 
   @override
@@ -385,34 +412,6 @@ class _ProfileCard extends StatelessWidget {
                         color: Colors.white,
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 11,
-                        vertical: 6,
-                      ),
-                      // decoration: BoxDecoration(
-                      //   color: _bloodmateRed,
-                      //   borderRadius: BorderRadius.circular(8),
-                      //   boxShadow: [
-                      //     BoxShadow(
-                      //       color: Colors.black.withValues(alpha: .14),
-                      //       blurRadius: 8,
-                      //       offset: const Offset(0, 3),
-                      //     ),
-                      //   ],
-                      // ),
-                      child: Text(
-                        "Blood Group: $bloodGroup",
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                        ),
                       ),
                     ),
                   ],

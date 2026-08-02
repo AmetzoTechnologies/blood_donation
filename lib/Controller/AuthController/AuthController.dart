@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:blood_donation/Constant/Constant.dart';
@@ -6,7 +7,9 @@ import 'package:blood_donation/Models/user_model/user_model.dart';
 import 'package:blood_donation/Screens/NavigationPage.dart';
 import 'package:blood_donation/Service/ApiService.dart';
 import 'package:blood_donation/Theme/AppColors.dart';
+import 'package:blood_donation/Utils/image_compressor.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -16,6 +19,9 @@ import '../../Screens/LoginPage/GoogleProfilePage.dart';
 import '../../Screens/LoginPage/PhoneLoginPage.dart';
 
 class AuthController extends GetxController {
+  static const String _tokenKey = "token";
+  static const String _cachedUserKey = "cached_user";
+
   TextEditingController phone = TextEditingController();
   TextEditingController password = TextEditingController();
   TextEditingController googleName = TextEditingController();
@@ -31,10 +37,11 @@ class AuthController extends GetxController {
   Rxn<File> proofFrontFile = Rxn<File>();
   Rxn<File> proofBackFile = Rxn<File>();
   final ApiService _apiService = ApiService();
+  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+  // serverClientId (Web client) is required on Android to receive idToken.
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email'],
-    serverClientId:
-        "679441613367-f716gr54d5jnoil30c0nap53iaprot02.apps.googleusercontent.com",
+    scopes: const ['email', 'profile'],
+    serverClientId: googleWebClientId,
   );
   RxBool isLoading = false.obs;
   RxBool isGoogleProfileLoading = false.obs;
@@ -43,34 +50,315 @@ class AuthController extends GetxController {
 
   Future<void> checkAuth() async {
     isLoading.value = true;
-    final prefs = await SharedPreferences.getInstance();
-    token = prefs.getString("token");
-    userModel = null;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      token = prefs.getString(_tokenKey);
+      userModel = null;
 
-    if (token != null) {
-      // ✅ Call your API to get user data
-      print(token);
-      final hasUserData = await getUserData();
+      if (token != null) {
+        print(token);
+        final hasUserData = await getUserData();
 
-      if (!hasUserData || token == null) {
-        await _clearSavedSession();
-        Get.offAll(() => PhoneLoginPage());
-        isLoading.value = false;
+        if (hasUserData) {
+          _openNextPage();
+          return;
+        }
+
+        if (token != null && await _restoreCachedUserData()) {
+          _openNextPage();
+          return;
+        }
+      }
+
+      if (await _restoreGoogleSession()) {
         return;
       }
 
-      if (_isUserProfileIncomplete()) {
-        _prefillGoogleProfile();
-        Get.offAll(() => GoogleProfilePage());
-      } else {
-        Get.offAll(() => NavigationPage());
-      }
-    } else {
-      // Navigate to Login
       Get.offAll(() => PhoneLoginPage());
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  void _openNextPage() {
+    if (_isUserProfileIncomplete()) {
+      _prefillGoogleProfile();
+      Get.offAll(() => GoogleProfilePage());
+    } else {
+      Get.offAll(() => NavigationPage());
+    }
+  }
+
+  Future<bool> _restoreGoogleSession() async {
+    try {
+      final googleUser = await _googleSignIn.signInSilently();
+      if (googleUser == null) {
+        return false;
+      }
+
+      return _signInWithGoogleAccount(googleUser, showErrors: false);
+    } catch (e) {
+      print("Silent Google restore error: $e");
+      return false;
+    }
+  }
+
+  Future<bool> _restoreCachedUserData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedUser = prefs.getString(_cachedUserKey);
+      if (cachedUser == null || cachedUser.isEmpty) {
+        return false;
+      }
+
+      final decoded = jsonDecode(cachedUser);
+      if (decoded is! Map) {
+        await prefs.remove(_cachedUserKey);
+        return false;
+      }
+
+      userModel = UserModel.fromJson(Map<String, dynamic>.from(decoded));
+      return userModel?.user != null;
+    } catch (e) {
+      print("Cached user restore error: $e");
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_cachedUserKey);
+      return false;
+    }
+  }
+
+  Future<void> _cacheUserData() async {
+    if (userModel?.user == null) {
+      return;
     }
 
-    isLoading.value = false;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_cachedUserKey, jsonEncode(userModel!.toJson()));
+  }
+
+  Future<void> _saveToken(String value) async {
+    token = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_tokenKey, value);
+  }
+
+  bool _setUserDataFromResponse(dynamic body) {
+    if (body is! Map || body['user'] == null) {
+      return false;
+    }
+
+    userModel = UserModel.fromJson(Map<String, dynamic>.from(body));
+    return userModel?.user != null;
+  }
+
+  Future<GoogleSignInAccount?> _getGoogleUserForSignIn() async {
+    try {
+      final silentUser = await _googleSignIn.signInSilently();
+      if (silentUser != null) {
+        return silentUser;
+      }
+    } catch (e) {
+      print("Silent Google sign in before prompt failed: $e");
+    }
+
+    return _googleSignIn.signIn();
+  }
+
+  bool _isAuthFailureResponse(Response response) {
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      return true;
+    }
+
+    final body = response.body;
+    if (body is! Map) {
+      return false;
+    }
+
+    final message = body['message']?.toString().toLowerCase();
+    if (message == null) {
+      return false;
+    }
+
+    return message.contains("invalid token") ||
+        message.contains("unauthorized") ||
+        message.contains("jwt");
+  }
+
+  Future<bool> _signInWithGoogleAccount(
+    GoogleSignInAccount googleUser, {
+    required bool showErrors,
+  }) async {
+    try {
+      var signedInUser = googleUser;
+      print("Google account selected: ${signedInUser.email}");
+
+      final googleAuth = await signedInUser.authentication;
+      var idToken = googleAuth.idToken;
+      var accessToken = googleAuth.accessToken;
+
+      // Retry once if token is missing (common after first install / config change).
+      if (idToken == null) {
+        await _googleSignIn.signOut();
+        final retryUser = await _googleSignIn.signIn();
+        if (retryUser != null) {
+          final retryAuth = await retryUser.authentication;
+          idToken = retryAuth.idToken;
+          accessToken = retryAuth.accessToken;
+          signedInUser = retryUser;
+        }
+      }
+
+      if (idToken == null) {
+        if (showErrors) {
+          _showAuthError(
+            "Google token missing",
+            "Your google-services.json has no OAuth clients yet.\n\n"
+            "1) Firebase Console → Project settings → Your Android app → add SHA-1 keys\n"
+            "2) Authentication → Sign-in method → enable Google\n"
+            "3) Re-download google-services.json into android/app/\n"
+            "4) Put the Web client ID into googleWebClientId in Constant.dart\n"
+            "5) flutter clean && flutter run",
+          );
+        }
+        return false;
+      }
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: accessToken,
+        idToken: idToken,
+      );
+      await _firebaseAuth.signInWithCredential(credential);
+      print("Firebase Google sign-in complete for ${signedInUser.email}");
+
+      return _loginWithIdToken(idToken, showErrors: showErrors);
+    } on FirebaseAuthException catch (e) {
+      print("Firebase auth error: ${e.code} ${e.message}");
+      if (showErrors) {
+        _showAuthError(
+          "Google sign in failed",
+          e.message ?? e.code,
+        );
+      }
+      return false;
+    } catch (e) {
+      print("Google sign in error: $e");
+      if (showErrors) {
+        _showAuthError("Google sign in failed", e.toString());
+      }
+      return false;
+    }
+  }
+
+  Future<bool> _loginWithIdToken(
+    String idToken, {
+    required bool showErrors,
+  }) async {
+    const endpoint = "/api/v1/user/google-login";
+
+    try {
+      print("Google id token received");
+
+      final response = await _apiService
+          .postRequest(endpoint, {"idToken": idToken})
+          .timeout(const Duration(seconds: 25));
+
+      print(
+        "Google login response: ${response.statusCode} ${response.statusText} ${response.body}",
+      );
+
+      if (response.isOk) {
+        final jwtToken = response.body['token']?.toString();
+        if (jwtToken == null || jwtToken.isEmpty) {
+          if (showErrors) {
+            _showAuthError(
+              "Google sign in failed",
+              "Server accepted the request but did not return a token.",
+            );
+          }
+          return false;
+        }
+
+        await _saveToken(jwtToken);
+        final hasResponseUser = _setUserDataFromResponse(response.body);
+        if (hasResponseUser) {
+          await _cacheUserData();
+        }
+
+        final hasUserData = await getUserData();
+        if (!hasUserData && token == null) {
+          if (showErrors) {
+            _showAuthError(
+              "Google sign in failed",
+              "Your saved session was rejected. Please try signing in again.",
+            );
+          }
+          return false;
+        }
+
+        if (!hasUserData && !hasResponseUser) {
+          if (showErrors) {
+            _showAuthError(
+              "Google sign in failed",
+              "Could not load your profile. Please try again.",
+            );
+          }
+          return false;
+        }
+
+        _openNextPage();
+
+        return true;
+      }
+
+      if (!showErrors) {
+        return false;
+      }
+
+      if (response.statusCode == null) {
+        _showAuthError(
+          "Google sign in failed",
+          _messageFromResponse(
+            response.body,
+            response.statusCode,
+            statusText: response.statusText,
+          ),
+        );
+        return false;
+      }
+
+      if (response.statusCode == 404) {
+        _showAuthError(
+          "Google login API missing",
+          "Backend route POST /api/v1/user/google-login was not found.",
+        );
+        return false;
+      }
+
+      _showSnack(
+        "Google sign in failed",
+        _messageFromResponse(
+          response.body,
+          response.statusCode,
+          statusText: response.statusText,
+        ),
+      );
+
+      return false;
+    } on TimeoutException {
+      if (showErrors) {
+        _showAuthError(
+          "Google sign in timed out",
+          "The app did not get a response from /api/v1/user/google-login.",
+        );
+      }
+      return false;
+    } catch (e) {
+      print("Backend google login error: $e");
+      if (showErrors) {
+        _showAuthError("Google sign in failed", e.toString());
+      }
+      return false;
+    }
   }
 
   Future loginUser() async {
@@ -80,9 +368,16 @@ class AuthController extends GetxController {
     try {
       final response = await _apiService.postRequest(endpoint, data);
       if (response.isOk) {
-        token = response.body['token'];
-        SharedPreferences pref = await SharedPreferences.getInstance();
-        pref.setString("token", token!);
+        final jwtToken = response.body['token']?.toString();
+        if (jwtToken == null || jwtToken.isEmpty) {
+          _showAuthError(
+            "Login failed",
+            "Server accepted the request but did not return a token.",
+          );
+          return;
+        }
+
+        await _saveToken(jwtToken);
         final hasUserData = await getUserData();
         if (!hasUserData) {
           _showAuthError(
@@ -103,81 +398,20 @@ class AuthController extends GetxController {
   }
 
   Future<void> signInWithGoogle() async {
-    const endpoint = "/api/v1/user/google-login";
     isLoading.value = true;
     try {
       print("Google sign in started");
-      final googleUser = await _googleSignIn.signIn();
+      final googleUser = await _getGoogleUserForSignIn();
       if (googleUser == null) {
         print("Google sign in cancelled");
-        return;
-      }
-      print("Google account selected: ${googleUser.email}");
-
-      final googleAuth = await googleUser.authentication;
-      final idToken = googleAuth.idToken;
-      if (idToken == null) {
-        _showAuthError(
-          "Google token missing",
-          "Check that this Android app package and SHA-1/SHA-256 are added in your Google Cloud OAuth/Firebase config.",
+        _showSnack(
+          "Google sign in cancelled",
+          "No Google account was selected.",
         );
         return;
       }
-      print("Google id token received");
 
-      final response = await _apiService
-          .postRequest(endpoint, {"idToken": idToken})
-          .timeout(const Duration(seconds: 25));
-
-      print("Google login response: ${response.statusCode} ${response.body}");
-
-      if (response.isOk) {
-        token = response.body['token'];
-        if (token == null) {
-          _showAuthError(
-            "Google sign in failed",
-            "Server accepted the request but did not return a token.",
-          );
-          return;
-        }
-
-        final pref = await SharedPreferences.getInstance();
-        await pref.setString("token", token!);
-        final hasUserData = await getUserData();
-        if (!hasUserData) {
-          _showAuthError(
-            "Google sign in failed",
-            "Could not load your profile. Please sign in again.",
-          );
-          return;
-        }
-
-        if (_needsGoogleProfile(response.body)) {
-          _prefillGoogleProfile();
-          Get.offAll(() => GoogleProfilePage());
-        } else {
-          Get.offAll(() => NavigationPage());
-        }
-      } else {
-        if (response.statusCode == 404) {
-          _showAuthError(
-            "Google login API missing",
-            "Backend route POST /api/v1/user/google-login was not found. For Android emulator local backend, run with API_BASE_URL=http://10.0.2.2:8165.",
-          );
-          return;
-        }
-
-        Get.snackbar(
-          "Google sign in failed",
-          _messageFromResponse(response.body, response.statusCode),
-          snackPosition: SnackPosition.BOTTOM,
-        );
-      }
-    } on TimeoutException {
-      _showAuthError(
-        "Google sign in timed out",
-        "Google account was selected, but the app did not get a response from /api/v1/user/google-login.",
-      );
+      await _signInWithGoogleAccount(googleUser, showErrors: true);
     } catch (e) {
       print("Google sign in error: $e");
       _showAuthError("Google sign in failed", e.toString());
@@ -186,12 +420,22 @@ class AuthController extends GetxController {
     }
   }
 
-  String _messageFromResponse(dynamic body, int? statusCode) {
+  String _messageFromResponse(
+    dynamic body,
+    int? statusCode, {
+    String? statusText,
+  }) {
     if (body is Map && body['message'] != null) {
       return body['message'].toString();
     }
     if (body != null && body.toString().isNotEmpty) {
       return "Status $statusCode: ${body.toString()}";
+    }
+    if (statusCode == null && statusText != null && statusText.isNotEmpty) {
+      return statusText;
+    }
+    if (statusCode == null) {
+      return "No response from server. Check your internet connection and try again. If the backend is waking up, wait a few seconds before retrying.";
     }
     return "Status $statusCode. Please try again.";
   }
@@ -257,7 +501,7 @@ class AuthController extends GetxController {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  onPressed: Get.back,
+                  onPressed: _safePop,
                   child: const Text(
                     "OK",
                     style: TextStyle(fontWeight: FontWeight.w700),
@@ -268,29 +512,37 @@ class AuthController extends GetxController {
           ),
         ),
       ),
+      barrierDismissible: false,
     );
   }
 
-  bool _needsGoogleProfile(dynamic responseBody) {
-    if (responseBody is Map) {
-      final profileComplete = responseBody['profileComplete'];
-      if (profileComplete is bool) {
-        return !profileComplete;
-      }
-
-      final isProfileComplete = responseBody['isProfileComplete'];
-      if (isProfileComplete is bool) {
-        return !isProfileComplete;
-      }
-
-      final isNewUser = responseBody['isNewUser'];
-      if (isNewUser is bool && isNewUser) {
-        return true;
-      }
+  /// Avoid Get.back() — it tries to close GetX snackbars and can throw
+  /// LateInitializationError when the snackbar controller was never initialized.
+  void _safePop() {
+    final context = Get.overlayContext ?? Get.context;
+    if (context == null) {
+      return;
     }
+    final navigator = Navigator.of(context, rootNavigator: true);
+    if (navigator.canPop()) {
+      navigator.pop();
+    }
+  }
 
-    final user = userModel?.user;
-    return _isUserProfileIncomplete(user);
+  void _showSnack(String title, String message) {
+    final context = Get.context;
+    if (context == null) {
+      return;
+    }
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text("$title\n$message"),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(12),
+        ),
+      );
   }
 
   bool _isUserProfileIncomplete([dynamic user]) {
@@ -303,10 +555,9 @@ class AuthController extends GetxController {
       return ["user"];
     }
 
-    if (currentUser.isProfileComplete == true) {
-      return [];
-    }
-
+    // Required fields for a usable account. If these exist, send the user
+    // to home even when backend flags like isProfileComplete / isNewUser
+    // are missing or wrong (avoids "Phone already in use" on complete page).
     final missing = <String>[];
     if (_isBlank(currentUser.name)) missing.add("name");
     if (currentUser.dateOfBirth == null) missing.add("dateOfBirth");
@@ -314,7 +565,15 @@ class AuthController extends GetxController {
     if (_isBlank(currentUser.phone)) missing.add("phone");
     if (_isBlank(currentUser.place)) missing.add("place");
     if (_isBlank(currentUser.bloodGroup)) missing.add("bloodGroup");
-    if (currentUser.isDonor == null) missing.add("isDonor");
+
+    if (missing.isEmpty) {
+      return [];
+    }
+
+    if (currentUser.isProfileComplete == true) {
+      return [];
+    }
+
     return missing;
   }
 
@@ -366,7 +625,7 @@ class AuthController extends GetxController {
   }
 
   Future<void> pickProfilePic() async {
-    final file = await _pickFile(type: FileType.image);
+    final file = await _pickFile(type: FileType.image, compressImage: true);
     if (file != null) {
       selectedProfilePic.value = file;
     }
@@ -408,12 +667,14 @@ class AuthController extends GetxController {
     return _pickFile(
       type: FileType.custom,
       allowedExtensions: const ["jpg", "jpeg", "png", "pdf"],
+      compressImage: true,
     );
   }
 
   Future<File?> _pickFile({
     required FileType type,
     List<String>? allowedExtensions,
+    bool compressImage = false,
   }) async {
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -425,13 +686,18 @@ class AuthController extends GetxController {
       if (path == null || path.isEmpty) {
         return null;
       }
-      return File(path);
+
+      final picked = File(path);
+      if (!compressImage) {
+        return picked;
+      }
+
+      return await ImageCompressor.compressIfNeeded(picked);
     } catch (e) {
       debugPrint("File picker error: $e");
-      Get.snackbar(
+      _showSnack(
         "File selection failed",
-        e.toString(),
-        snackPosition: SnackPosition.BOTTOM,
+        e.toString().replaceFirst("Bad state: ", "").replaceFirst("StateError: ", ""),
       );
       return null;
     }
@@ -580,7 +846,7 @@ class AuthController extends GetxController {
           Get.offAll(() => PhoneLoginPage());
           return;
         }
-        Get.back();
+        _safePop();
         _showAuthError("Profile updated", "Your profile has been updated.");
       } else {
         _showAuthError(
@@ -804,10 +1070,9 @@ class AuthController extends GetxController {
           Get.offAll(() => PhoneLoginPage());
           return;
         }
-        Get.snackbar(
+        _showSnack(
           "Donation date updated",
           "Last donation date has been saved.",
-          snackPosition: SnackPosition.BOTTOM,
         );
       } else {
         _showAuthError(
@@ -835,22 +1100,23 @@ class AuthController extends GetxController {
   Future<bool> getUserData() async {
     final endpoint = "/api/v1/user/get";
     try {
-      final response = await _apiService.getRequest(
-        endpoint,
-        bearerToken: token,
-      );
+      final response = await _apiService
+          .getRequest(endpoint, bearerToken: token)
+          .timeout(const Duration(seconds: 25));
       if (response.isOk) {
         print(response.body);
         userModel = UserModel.fromJson(response.body);
+        await _cacheUserData();
         return true;
       } else {
         print(response.body);
-        await _clearSavedSession();
+        if (_isAuthFailureResponse(response)) {
+          await _clearSavedSession();
+        }
         return false;
       }
     } catch (e) {
       print("Get user data error: $e");
-      await _clearSavedSession();
       return false;
     }
   }
@@ -886,9 +1152,16 @@ class AuthController extends GetxController {
 
       if (response.isOk) {
         print(response.body);
-        token = response.body['token'];
-        SharedPreferences pref = await SharedPreferences.getInstance();
-        pref.setString("token", token!);
+        final jwtToken = response.body['token']?.toString();
+        if (jwtToken == null || jwtToken.isEmpty) {
+          _showAuthError(
+            "Login failed",
+            "Server accepted the request but did not return a token.",
+          );
+          return;
+        }
+
+        await _saveToken(jwtToken);
         final hasUserData = await getUserData();
         if (!hasUserData) {
           _showAuthError(
@@ -899,7 +1172,7 @@ class AuthController extends GetxController {
         }
         Get.offAll(NavigationPage());
       } else {
-        Get.snackbar("Error", response.body['message']);
+        _showSnack("Error", response.body['message']?.toString() ?? "Login failed");
         print(response.body);
       }
     } catch (e) {
@@ -912,6 +1185,7 @@ class AuthController extends GetxController {
   }
 
   Future logout() async {
+    await _firebaseAuth.signOut();
     await _googleSignIn.signOut();
     await _clearSavedSession();
     Get.offAll(PhoneLoginPage());
@@ -921,7 +1195,8 @@ class AuthController extends GetxController {
     token = null;
     userModel = null;
     final pref = await SharedPreferences.getInstance();
-    await pref.remove("token");
+    await pref.remove(_tokenKey);
+    await pref.remove(_cachedUserKey);
   }
 
   Future changePassword(String oldPassword, String newPassword) async {
@@ -939,12 +1214,12 @@ class AuthController extends GetxController {
           middleText: "Password change successfully.",
           textConfirm: "OK",
           onConfirm: () {
-            Get.back(); // close dialog
-            Get.back(); // navigate to login page
+            _safePop(); // close dialog
+            _safePop(); // leave password page
           },
         );
       } else {
-        Get.snackbar("Error", response.body);
+        _showSnack("Error", response.body?.toString() ?? "Password change failed");
       }
     } catch (e) {
       rethrow;
