@@ -3,12 +3,17 @@ import 'package:blood_donation/Screens/FindDonorPage/FindDonorPage.dart';
 import 'package:blood_donation/Theme/AppColors.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-const Color _bloodmateRed = Color(0xFFE71921);
-const Color _bloodmateCyan = Color(0xFF11C0CC);
+const Color _donormateRed = Color(0xFFE71921);
+const Color _donormateCyan = Color(0xFF11C0CC);
 const Color _softCyan = Color(0xFFE9FBFC);
 const Color _supportMint = Color(0xFFEAFBF4);
 const Color _avatarGreen = Color(0xFF009D8F);
+
+const String _supportPhoneDisplay = '+91 95393 94545';
+const String _supportPhoneDial = '+919539394545';
+const String _supportEmail = 'shibilparamban@gmail.com';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -84,22 +89,33 @@ class HomePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 Row(
-                  children: const [
+                  children: [
                     Expanded(
                       child: _SupportTile(
-                        icon: Icons.support_agent,
+                        icon: Icons.phone_outlined,
                         title: "Contact us",
-                        subtitle: "We're here to help you",
+                        subtitle: _supportPhoneDisplay,
                         color: _softCyan,
+                        onTap: () => _launchExternalUri(
+                          Uri(scheme: 'tel', path: _supportPhoneDial),
+                          errorMessage: 'Could not open dialer',
+                        ),
                       ),
                     ),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: _SupportTile(
-                        icon: Icons.volunteer_activism,
+                        icon: Icons.email_outlined,
                         title: "Support us",
-                        subtitle: "Help us save more lives",
+                        subtitle: _supportEmail,
                         color: _supportMint,
+                        onTap: () => _launchExternalUri(
+                          Uri(
+                            scheme: 'mailto',
+                            path: _supportEmail,
+                          ),
+                          errorMessage: 'Could not open email app',
+                        ),
                       ),
                     ),
                   ],
@@ -178,7 +194,7 @@ class _HeroBrand extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Image.asset(
-          "assets/images/bloodmate_logo.png",
+          "assets/images/donormate_logo.png",
           width: 112,
           height: 112,
           fit: BoxFit.contain,
@@ -187,7 +203,7 @@ class _HeroBrand extends StatelessWidget {
         Text(
           "MYL MANHAPPATTA",
           style: TextStyle(
-            color: _bloodmateCyan,
+            color: _donormateCyan,
             fontSize: 14,
             fontWeight: FontWeight.bold,
           ),
@@ -196,9 +212,9 @@ class _HeroBrand extends StatelessWidget {
         //   text: const TextSpan(
         //     children: [
         //       TextSpan(
-        //         text: "Blood",
+        //         text: "Donor",
         //         style: TextStyle(
-        //           color: _bloodmateRed,
+        //           color: _donormateRed,
         //           fontSize: 28,
         //           fontWeight: FontWeight.w900,
         //         ),
@@ -206,7 +222,7 @@ class _HeroBrand extends StatelessWidget {
         //       TextSpan(
         //         text: "mate",
         //         style: TextStyle(
-        //           color: _bloodmateCyan,
+        //           color: _donormateCyan,
         //           fontSize: 28,
         //           fontWeight: FontWeight.w900,
         //         ),
@@ -231,7 +247,7 @@ class _BrandEcgPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final y = size.height * .50;
     final paint = Paint()
-      ..color = _bloodmateRed
+      ..color = _donormateRed
       ..strokeWidth = 1.8
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
@@ -293,7 +309,7 @@ class _DropPainter extends CustomPainter {
     final dropPath = _dropPath(size);
     canvas.drawShadow(
       dropPath.shift(const Offset(0, 8)),
-      _bloodmateRed.withValues(alpha: .30),
+      _donormateRed.withValues(alpha: .30),
       14,
       false,
     );
@@ -386,7 +402,7 @@ class _ProfileCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: _bloodmateCyan.withValues(alpha: .35),
+            color: _donormateCyan.withValues(alpha: .35),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -487,7 +503,7 @@ class _StatusBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: _bloodmateCyan.withValues(alpha: .16),
+            color: _donormateCyan.withValues(alpha: .16),
             blurRadius: 22,
             offset: const Offset(0, 9),
           ),
@@ -501,7 +517,7 @@ class _StatusBanner extends StatelessWidget {
             decoration: BoxDecoration(color: _softCyan, shape: BoxShape.circle),
             child: Icon(
               isDonor ? Icons.verified_outlined : Icons.info_outline_rounded,
-              color: _bloodmateCyan,
+              color: _donormateCyan,
               size: 27,
             ),
           ),
@@ -519,7 +535,7 @@ class _StatusBanner extends StatelessWidget {
               ),
             ),
           ),
-          const Icon(Icons.chevron_right, color: _bloodmateCyan, size: 28),
+          const Icon(Icons.chevron_right, color: _donormateCyan, size: 28),
         ],
       ),
     );
@@ -536,7 +552,7 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, color: _bloodmateCyan, size: 24),
+        Icon(icon, color: _donormateCyan, size: 24),
         const SizedBox(width: 7),
         Text(
           title,
@@ -551,7 +567,7 @@ class _SectionTitle extends StatelessWidget {
           child: Container(
             height: 2,
             decoration: BoxDecoration(
-              color: _bloodmateCyan.withValues(alpha: .35),
+              color: _donormateCyan.withValues(alpha: .35),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -639,38 +655,54 @@ class _BloodGroupTile extends StatelessWidget {
   }
 }
 
+Future<void> _launchExternalUri(
+  Uri uri, {
+  required String errorMessage,
+}) async {
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  } else {
+    Get.snackbar('Error', errorMessage);
+  }
+}
+
 class _SupportTile extends StatelessWidget {
   const _SupportTile({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.color,
+    required this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final Color color;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 130,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color,
+    return Material(
+      color: color,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: _bloodmateCyan.withValues(alpha: .10),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+        child: Container(
+          height: 130,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: _donormateCyan.withValues(alpha: .10),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Column(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -681,7 +713,7 @@ class _SupportTile extends StatelessWidget {
                   color: Colors.white,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: _bloodmateCyan, size: 25),
+                child: Icon(icon, color: _donormateCyan, size: 25),
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -699,7 +731,7 @@ class _SupportTile extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     subtitle,
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.black54,
@@ -711,7 +743,7 @@ class _SupportTile extends StatelessWidget {
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -763,7 +795,7 @@ class _HeroBackgroundPainter extends CustomPainter {
     canvas.drawPath(wavePath, wavePaint);
 
     final linePaint = Paint()
-      ..color = _bloodmateCyan.withValues(alpha: .28)
+      ..color = _donormateCyan.withValues(alpha: .28)
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round

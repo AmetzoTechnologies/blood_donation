@@ -13,6 +13,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../Screens/LoginPage/GoogleProfilePage.dart';
@@ -243,7 +245,13 @@ class AuthController extends GetxController {
     } catch (e) {
       print("Google sign in error: $e");
       if (showErrors) {
-        _showAuthError("Google sign in failed", e.toString());
+        _showAuthError(
+          "Google sign in failed",
+          _friendlyErrorMessage(
+            e,
+            fallback: "Google sign in failed. Please try again.",
+          ),
+        );
       }
       return false;
     }
@@ -355,7 +363,13 @@ class AuthController extends GetxController {
     } catch (e) {
       print("Backend google login error: $e");
       if (showErrors) {
-        _showAuthError("Google sign in failed", e.toString());
+        _showAuthError(
+          "Google sign in failed",
+          _friendlyErrorMessage(
+            e,
+            fallback: "Google sign in failed. Please try again.",
+          ),
+        );
       }
       return false;
     }
@@ -414,7 +428,13 @@ class AuthController extends GetxController {
       await _signInWithGoogleAccount(googleUser, showErrors: true);
     } catch (e) {
       print("Google sign in error: $e");
-      _showAuthError("Google sign in failed", e.toString());
+      _showAuthError(
+        "Google sign in failed",
+        _friendlyErrorMessage(
+          e,
+          fallback: "Google sign in failed. Please try again.",
+        ),
+      );
     } finally {
       isLoading.value = false;
     }
@@ -543,6 +563,63 @@ class AuthController extends GetxController {
           margin: const EdgeInsets.all(12),
         ),
       );
+  }
+
+  /// Never surface raw exception text (paths, errno, stack) in the UI.
+  String _friendlyErrorMessage(
+    Object error, {
+    required String fallback,
+  }) {
+    if (error is StateError) {
+      final message = error.message.trim();
+      if (message.isNotEmpty && !_looksTechnical(message)) {
+        return message;
+      }
+    }
+
+    if (error is PathNotFoundException || error is FileSystemException) {
+      return "Could not read the selected file. Please choose it again.";
+    }
+
+    final raw = error.toString().trim();
+    if (raw.isEmpty || _looksTechnical(raw)) {
+      return fallback;
+    }
+
+    return raw
+        .replaceFirst(RegExp(r'^Bad state:\s*'), '')
+        .replaceFirst(RegExp(r'^StateError:\s*'), '');
+  }
+
+  bool _looksTechnical(String message) {
+    final lower = message.toLowerCase();
+    return lower.contains('exception') ||
+        lower.contains('errno') ||
+        lower.contains('os error') ||
+        lower.contains('path =') ||
+        lower.contains('/data/') ||
+        lower.contains('file_picker') ||
+        lower.contains('stack trace') ||
+        lower.contains('socketexception') ||
+        lower.contains('httpexception') ||
+        lower.contains('timeoutexception') ||
+        RegExp(r'[A-Za-z]:\\').hasMatch(message);
+  }
+
+  Future<File> _persistPickedFile(File source) async {
+    if (!await source.exists()) {
+      throw StateError(
+        "Could not read the selected file. Please choose it again.",
+      );
+    }
+
+    final tempDir = await getTemporaryDirectory();
+    final extension = p.extension(source.path);
+    final destPath = p.join(
+      tempDir.path,
+      "pick_${DateTime.now().millisecondsSinceEpoch}$extension",
+    );
+    return source.copy(destPath);
   }
 
   bool _isUserProfileIncomplete([dynamic user]) {
@@ -687,7 +764,8 @@ class AuthController extends GetxController {
         return null;
       }
 
-      final picked = File(path);
+      // Copy out of file_picker cache — some devices delete that path quickly.
+      final picked = await _persistPickedFile(File(path));
       if (!compressImage) {
         return picked;
       }
@@ -697,7 +775,10 @@ class AuthController extends GetxController {
       debugPrint("File picker error: $e");
       _showSnack(
         "File selection failed",
-        e.toString().replaceFirst("Bad state: ", "").replaceFirst("StateError: ", ""),
+        _friendlyErrorMessage(
+          e,
+          fallback: "Could not select the file. Please try again.",
+        ),
       );
       return null;
     }
@@ -761,7 +842,13 @@ class AuthController extends GetxController {
       );
     } catch (e) {
       print("Complete profile error: $e");
-      _showAuthError("Profile update failed", e.toString());
+      _showAuthError(
+        "Profile update failed",
+        _friendlyErrorMessage(
+          e,
+          fallback: "Something went wrong. Please try again.",
+        ),
+      );
     } finally {
       isGoogleProfileLoading.value = false;
     }
@@ -861,7 +948,13 @@ class AuthController extends GetxController {
       );
     } catch (e) {
       print("Profile update error: $e");
-      _showAuthError("Profile update failed", e.toString());
+      _showAuthError(
+        "Profile update failed",
+        _friendlyErrorMessage(
+          e,
+          fallback: "Something went wrong. Please try again.",
+        ),
+      );
     } finally {
       isProfileUpdateLoading.value = false;
     }
@@ -907,6 +1000,14 @@ class AuthController extends GetxController {
     isMediaUploadLoading.value = true;
     try {
       if (profilePic != null) {
+        if (!await profilePic.exists()) {
+          clearSelectedProfilePic();
+          _showAuthError(
+            "Upload failed",
+            "Could not read the selected photo. Please choose it again.",
+          );
+          return false;
+        }
         debugPrint("Profile photo upload request: ${profilePic.path}");
         final response = await _apiService
             .putMultipartRequest(
@@ -923,13 +1024,22 @@ class AuthController extends GetxController {
         if (!response.isOk) {
           _showAuthError(
             "Profile photo upload failed",
-            _messageFromResponse(response.body, response.statusCode),
+            "Could not upload your photo. Please try again.",
           );
           return false;
         }
       }
 
       if (proofFront != null && proofBack != null) {
+        if (!await proofFront.exists() || !await proofBack.exists()) {
+          clearProofFront();
+          clearProofBack();
+          _showAuthError(
+            "Upload failed",
+            "Could not read the selected proof files. Please choose them again.",
+          );
+          return false;
+        }
         debugPrint(
           "Proof upload request: ${proofFront.path}, ${proofBack.path}",
         );
@@ -948,7 +1058,7 @@ class AuthController extends GetxController {
         if (!response.isOk) {
           _showAuthError(
             "Proof upload failed",
-            _messageFromResponse(response.body, response.statusCode),
+            "Could not upload your proof documents. Please try again.",
           );
           return false;
         }
@@ -959,12 +1069,18 @@ class AuthController extends GetxController {
     } on TimeoutException {
       _showAuthError(
         "Upload timed out",
-        "The app did not get a response while uploading your files.",
+        "Upload took too long. Please check your connection and try again.",
       );
       return false;
     } catch (e) {
       debugPrint("Media upload error: $e");
-      _showAuthError("Upload failed", e.toString());
+      _showAuthError(
+        "Upload failed",
+        _friendlyErrorMessage(
+          e,
+          fallback: "Could not upload your file. Please try again.",
+        ),
+      );
       return false;
     } finally {
       isMediaUploadLoading.value = false;
@@ -1027,7 +1143,13 @@ class AuthController extends GetxController {
     } catch (e) {
       googleIsDonor.value = previousValue;
       print("Donor availability update error: $e");
-      _showAuthError("Donor status update failed", e.toString());
+      _showAuthError(
+        "Donor status update failed",
+        _friendlyErrorMessage(
+          e,
+          fallback: "Could not update donor status. Please try again.",
+        ),
+      );
     } finally {
       isProfileUpdateLoading.value = false;
     }
@@ -1087,7 +1209,13 @@ class AuthController extends GetxController {
       );
     } catch (e) {
       print("Last donation date update error: $e");
-      _showAuthError("Donation date update failed", e.toString());
+      _showAuthError(
+        "Donation date update failed",
+        _friendlyErrorMessage(
+          e,
+          fallback: "Could not update donation date. Please try again.",
+        ),
+      );
     } finally {
       isProfileUpdateLoading.value = false;
     }

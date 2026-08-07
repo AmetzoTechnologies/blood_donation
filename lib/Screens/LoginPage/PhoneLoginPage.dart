@@ -25,7 +25,7 @@ class PhoneLoginPage extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Image.asset(
-                        "assets/images/bloodmate_logo.png",
+                        "assets/images/donormate_logo.png",
                         width: 230,
                         fit: BoxFit.contain,
                       ),

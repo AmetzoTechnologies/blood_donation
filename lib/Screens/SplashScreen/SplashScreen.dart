@@ -23,7 +23,7 @@ class SplashPage extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Image.asset(
-                        "assets/images/bloodmate_logo.png",
+                        "assets/images/donormate_logo.png",
                         width: 190,
                         fit: BoxFit.contain,
                       ),

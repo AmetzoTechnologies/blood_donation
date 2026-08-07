@@ -22,6 +22,12 @@ class ImageCompressor {
       return file;
     }
 
+    if (!await file.exists()) {
+      throw StateError(
+        "Could not read the selected file. Please choose it again.",
+      );
+    }
+
     final originalSize = await file.length();
     debugPrint(
       "Image compress start: ${file.path} (${_formatBytes(originalSize)})",
