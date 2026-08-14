@@ -164,7 +164,7 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
     final stepLabels = ["Personal", "Uploads", "Donation"];
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 14),
+      padding: const EdgeInsets.fromLTRB(28, 6, 28, 8),
       color: Colors.white,
       child: Column(
         children: [
@@ -175,8 +175,8 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
                 final isPassed = stepBefore < _currentStep;
                 return Expanded(
                   child: Container(
-                    height: 3,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    height: 2.5,
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
                     decoration: BoxDecoration(
                       color: isPassed
                           ? AppColors.primaryColor
@@ -193,8 +193,8 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
 
               return AnimatedContainer(
                 duration: const Duration(milliseconds: 250),
-                height: 36,
-                width: 36,
+                height: 28,
+                width: 28,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: isDone || isCurrent
@@ -206,48 +206,39 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
                         : Colors.grey.shade300,
                     width: 2,
                   ),
-                  boxShadow: isCurrent
-                      ? [
-                          BoxShadow(
-                            color: AppColors.primaryColor.withValues(alpha: .25),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ]
-                      : [],
                 ),
                 child: Center(
                   child: isDone
                       ? const Icon(
                           Icons.check,
                           color: Colors.white,
-                          size: 18,
+                          size: 14,
                         )
                       : Text(
                           "${stepIndex + 1}",
                           style: TextStyle(
                             color: isCurrent ? Colors.white : Colors.grey.shade600,
                             fontWeight: FontWeight.w800,
-                            fontSize: 14,
+                            fontSize: 12,
                           ),
                         ),
                 ),
               );
             }),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(_totalSteps, (index) {
               final isDone = index < _currentStep;
               final isCurrent = index == _currentStep;
               return SizedBox(
-                width: 72,
+                width: 68,
                 child: Text(
                   stepLabels[index],
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: isCurrent || isDone
                         ? FontWeight.w800
                         : FontWeight.w600,
@@ -261,7 +252,7 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
               );
             }),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
           const Divider(height: 1, thickness: 1, color: Color(0xFFEEEEEE)),
         ],
       ),
