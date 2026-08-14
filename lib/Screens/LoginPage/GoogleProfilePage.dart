@@ -164,11 +164,12 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
     final stepLabels = ["Personal", "Uploads", "Donation"];
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(28, 6, 28, 8),
+      padding: const EdgeInsets.fromLTRB(28, 8, 28, 8),
       color: Colors.white,
       child: Column(
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: List.generate(_totalSteps * 2 - 1, (index) {
               if (index.isOdd) {
                 final stepBefore = index ~/ 2;
@@ -176,7 +177,7 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
                 return Expanded(
                   child: Container(
                     height: 2.5,
-                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    margin: const EdgeInsets.only(top: 13),
                     decoration: BoxDecoration(
                       color: isPassed
                           ? AppColors.primaryColor
@@ -191,64 +192,61 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
               final isDone = stepIndex < _currentStep;
               final isCurrent = stepIndex == _currentStep;
 
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                height: 28,
-                width: 28,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isDone || isCurrent
-                      ? AppColors.primaryColor
-                      : Colors.white,
-                  border: Border.all(
-                    color: isDone || isCurrent
-                        ? AppColors.primaryColor
-                        : Colors.grey.shade300,
-                    width: 2,
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    height: 28,
+                    width: 28,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isDone || isCurrent
+                          ? AppColors.primaryColor
+                          : Colors.white,
+                      border: Border.all(
+                        color: isDone || isCurrent
+                            ? AppColors.primaryColor
+                            : Colors.grey.shade300,
+                        width: 2,
+                      ),
+                    ),
+                    child: Center(
+                      child: isDone
+                          ? const Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: 14,
+                            )
+                          : Text(
+                              "${stepIndex + 1}",
+                              style: TextStyle(
+                                color: isCurrent
+                                    ? Colors.white
+                                    : Colors.grey.shade600,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12,
+                              ),
+                            ),
+                    ),
                   ),
-                ),
-                child: Center(
-                  child: isDone
-                      ? const Icon(
-                          Icons.check,
-                          color: Colors.white,
-                          size: 14,
-                        )
-                      : Text(
-                          "${stepIndex + 1}",
-                          style: TextStyle(
-                            color: isCurrent ? Colors.white : Colors.grey.shade600,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12,
-                          ),
-                        ),
-                ),
-              );
-            }),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(_totalSteps, (index) {
-              final isDone = index < _currentStep;
-              final isCurrent = index == _currentStep;
-              return SizedBox(
-                width: 68,
-                child: Text(
-                  stepLabels[index],
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: isCurrent || isDone
-                        ? FontWeight.w800
-                        : FontWeight.w600,
-                    color: isCurrent
-                        ? AppColors.primaryColor
-                        : isDone
-                            ? Colors.black87
-                            : Colors.grey.shade400,
+                  const SizedBox(height: 4),
+                  Text(
+                    stepLabels[stepIndex],
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: isCurrent || isDone
+                          ? FontWeight.w800
+                          : FontWeight.w600,
+                      color: isCurrent
+                          ? AppColors.primaryColor
+                          : isDone
+                              ? Colors.black87
+                              : Colors.grey.shade400,
+                    ),
                   ),
-                ),
+                ],
               );
             }),
           ),
