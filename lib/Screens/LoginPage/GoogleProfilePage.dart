@@ -117,8 +117,6 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final progress = (_currentStep + 1) / _totalSteps;
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -138,7 +136,7 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildProgressHeader(progress),
+            _buildStepProgressHeader(),
             Expanded(
               child: PageView(
                 controller: _pageController,
@@ -162,77 +160,111 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
     );
   }
 
-  Widget _buildProgressHeader(double progress) {
-    final stepTitles = [
-      "Personal & Contact",
-      "ID & Photo Uploads",
-      "Donation Details",
-    ];
+  Widget _buildStepProgressHeader() {
+    final stepLabels = ["Personal", "Uploads", "Donation"];
 
-    return Column(
-      children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          child: LinearProgressIndicator(
-            value: progress,
-            backgroundColor: AppColors.primaryColor.withValues(alpha: .12),
-            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
-            minHeight: 5,
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "STEP ${_currentStep + 1} OF $_totalSteps",
-                    style: TextStyle(
-                      color: AppColors.primaryColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.1,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    stepTitles[_currentStep],
-                    style: const TextStyle(
-                      color: Colors.black87,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                children: List.generate(_totalSteps, (index) {
-                  final isDone = index < _currentStep;
-                  final isCurrent = index == _currentStep;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    margin: const EdgeInsets.only(left: 6),
-                    height: 10,
-                    width: isCurrent ? 24 : 10,
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 14),
+      color: Colors.white,
+      child: Column(
+        children: [
+          Row(
+            children: List.generate(_totalSteps * 2 - 1, (index) {
+              if (index.isOdd) {
+                final stepBefore = index ~/ 2;
+                final isPassed = stepBefore < _currentStep;
+                return Expanded(
+                  child: Container(
+                    height: 3,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
-                      color: isCurrent
+                      color: isPassed
                           ? AppColors.primaryColor
-                          : isDone
-                              ? AppColors.primaryColor.withValues(alpha: .5)
-                              : Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(5),
+                          : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
                     ),
-                  );
-                }),
-              ),
-            ],
+                  ),
+                );
+              }
+
+              final stepIndex = index ~/ 2;
+              final isDone = stepIndex < _currentStep;
+              final isCurrent = stepIndex == _currentStep;
+
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                height: 36,
+                width: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isDone || isCurrent
+                      ? AppColors.primaryColor
+                      : Colors.white,
+                  border: Border.all(
+                    color: isDone || isCurrent
+                        ? AppColors.primaryColor
+                        : Colors.grey.shade300,
+                    width: 2,
+                  ),
+                  boxShadow: isCurrent
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primaryColor.withValues(alpha: .25),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ]
+                      : [],
+                ),
+                child: Center(
+                  child: isDone
+                      ? const Icon(
+                          Icons.check,
+                          color: Colors.white,
+                          size: 18,
+                        )
+                      : Text(
+                          "${stepIndex + 1}",
+                          style: TextStyle(
+                            color: isCurrent ? Colors.white : Colors.grey.shade600,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                          ),
+                        ),
+                ),
+              );
+            }),
           ),
-        ),
-        const Divider(height: 1, thickness: 1, color: Color(0xFFEEEEEE)),
-      ],
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(_totalSteps, (index) {
+              final isDone = index < _currentStep;
+              final isCurrent = index == _currentStep;
+              return SizedBox(
+                width: 72,
+                child: Text(
+                  stepLabels[index],
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isCurrent || isDone
+                        ? FontWeight.w800
+                        : FontWeight.w600,
+                    color: isCurrent
+                        ? AppColors.primaryColor
+                        : isDone
+                            ? Colors.black87
+                            : Colors.grey.shade400,
+                  ),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1, thickness: 1, color: Color(0xFFEEEEEE)),
+        ],
+      ),
     );
   }
 
