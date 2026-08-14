@@ -31,32 +31,41 @@ class ProfilePhotoPicker extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              height: 74,
-              width: 74,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.primaryColor.withValues(alpha: .16),
+            GestureDetector(
+              onTap: imageProvider == null
+                  ? null
+                  : () => _showProfilePhotoModal(
+                        context,
+                        imageProvider,
+                        "Profile Photo",
+                      ),
+              child: Container(
+                height: 74,
+                width: 74,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: AppColors.primaryColor.withValues(alpha: .16),
+                  ),
                 ),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: imageProvider == null
-                  ? Icon(
-                      Icons.person_outline,
-                      color: AppColors.primaryColor,
-                      size: 34,
-                    )
-                  : Image(
-                      image: imageProvider,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Icon(
+                clipBehavior: Clip.antiAlias,
+                child: imageProvider == null
+                    ? Icon(
                         Icons.person_outline,
                         color: AppColors.primaryColor,
                         size: 34,
+                      )
+                    : Image(
+                        image: imageProvider,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Icon(
+                          Icons.person_outline,
+                          color: AppColors.primaryColor,
+                          size: 34,
+                        ),
                       ),
-                    ),
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -75,8 +84,8 @@ class ProfilePhotoPicker extends StatelessWidget {
                   Text(
                     selectedFile == null
                         ? savedUrl == null
-                              ? "No photo selected"
-                              : "Current photo"
+                            ? "No photo selected"
+                            : "Current photo"
                         : fileName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -111,6 +120,55 @@ class ProfilePhotoPicker extends StatelessWidget {
         ),
       );
     });
+  }
+
+  void _showProfilePhotoModal(
+    BuildContext context,
+    ImageProvider imageProvider,
+    String title,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return Dialog(
+          backgroundColor: Colors.black,
+          insetPadding: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppBar(
+                backgroundColor: Colors.black,
+                elevation: 0,
+                title: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                leading: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Navigator.of(ctx).pop(),
+                ),
+              ),
+              Flexible(
+                child: InteractiveViewer(
+                  child: Image(
+                    image: imageProvider,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -176,6 +234,7 @@ class ProofDocumentPicker extends StatelessWidget {
             const SizedBox(height: 10),
           ],
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: _ProofImageTile(
@@ -238,20 +297,53 @@ class _ProofImageTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AspectRatio(
-            aspectRatio: 1.12,
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: AppColors.primaryColor.withValues(alpha: .16),
+          Stack(
+            children: [
+              GestureDetector(
+                onTap: file == null
+                    ? null
+                    : () => _showImagePreviewModal(context, file!, label),
+                child: AspectRatio(
+                  aspectRatio: 1.12,
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppColors.primaryColor.withValues(alpha: .16),
+                      ),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: _preview(),
+                  ),
                 ),
               ),
-              clipBehavior: Clip.antiAlias,
-              child: _preview(),
-            ),
+              if (file != null)
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: isBusy ? null : onClear,
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: .65),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 9),
           Text(
@@ -274,26 +366,14 @@ class _ProofImageTile extends StatelessWidget {
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: isBusy ? null : onPick,
-              icon: Icon(file == null ? Icons.upload_file : Icons.swap_horiz),
+              icon: Icon(
+                file == null ? Icons.upload_file : Icons.swap_horiz,
+                size: 18,
+              ),
               label: Text(file == null ? "Upload" : "Change"),
               style: _buttonStyle(),
             ),
           ),
-          if (file != null)
-            SizedBox(
-              width: double.infinity,
-              child: TextButton.icon(
-                onPressed: isBusy ? null : onClear,
-                icon: const Icon(Icons.close, size: 18),
-                label: const Text("Remove"),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.black54,
-                  minimumSize: const Size(0, 36),
-                  padding: EdgeInsets.zero,
-                  textStyle: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -310,7 +390,7 @@ class _ProofImageTile extends StatelessWidget {
         selectedFile,
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => Icon(
-          Icons.description_outlined,
+          Icons.image_not_supported_outlined,
           color: AppColors.primaryColor,
           size: 34,
         ),
@@ -318,7 +398,7 @@ class _ProofImageTile extends StatelessWidget {
     }
 
     return Icon(
-      Icons.picture_as_pdf_outlined,
+      Icons.image_outlined,
       color: AppColors.primaryColor,
       size: 34,
     );
@@ -328,7 +408,52 @@ class _ProofImageTile extends StatelessWidget {
     final path = selectedFile.path.toLowerCase();
     return path.endsWith(".jpg") ||
         path.endsWith(".jpeg") ||
-        path.endsWith(".png");
+        path.endsWith(".png") ||
+        path.endsWith(".webp") ||
+        path.endsWith(".heic") ||
+        path.endsWith(".heif");
+  }
+
+  void _showImagePreviewModal(BuildContext context, File file, String title) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return Dialog(
+          backgroundColor: Colors.black,
+          insetPadding: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppBar(
+                backgroundColor: Colors.black,
+                elevation: 0,
+                title: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                leading: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Navigator.of(ctx).pop(),
+                ),
+              ),
+              Flexible(
+                child: InteractiveViewer(
+                  child: Image.file(file, fit: BoxFit.contain),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 

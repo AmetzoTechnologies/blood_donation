@@ -2,6 +2,7 @@ import 'package:blood_donation/Constant/Constant.dart';
 import 'package:blood_donation/Theme/AppColors.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../Controller/AuthController/AuthController.dart';
 import '../../Models/user_model/user.dart';
 import 'ProfileUpdatePage.dart';
@@ -29,7 +30,10 @@ class ProfilePage extends StatelessWidget {
       body: ListView(
         padding: EdgeInsets.zero,
         children: [
-          _Header(user: user, onLogout: controller.logout),
+          _Header(
+            user: user,
+            onLogout: () => _showLogoutWarning(context),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 22, 18, 8),
             child: Column(
@@ -47,23 +51,17 @@ class ProfilePage extends StatelessWidget {
                 _DonorAvailabilityTile(controller: controller),
                 _InfoTile(
                   title: "Gender",
-                  value: _value(user.gender),
+                  value: _formatGender(user.gender),
                   icon: Icons.person_outline,
                 ),
                 _InfoTile(
                   title: "Date of Birth",
-                  value: user.dateOfBirth == null
-                      ? "-"
-                      : user.dateOfBirth!.toLocal().toString().split(' ')[0],
+                  value: _formatDate(user.dateOfBirth),
                   icon: Icons.cake_outlined,
                 ),
                 _InfoTile(
                   title: "Last Donation",
-                  value: user.lastDonationDate == null
-                      ? "-"
-                      : user.lastDonationDate!.toLocal().toString().split(
-                          ' ',
-                        )[0],
+                  value: _formatDate(user.lastDonationDate),
                   icon: Icons.event_available_outlined,
                 ),
                 const SizedBox(height: 12),
@@ -80,13 +78,29 @@ class ProfilePage extends StatelessWidget {
                   icon: Icons.privacy_tip_outlined,
                   color: Colors.green,
                   title: "Privacy Policy",
-                  onTap: () {},
+                  onTap: () async {
+                    final uri = Uri.parse(privacyPolicyUrl);
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(
+                        uri,
+                        mode: LaunchMode.externalApplication,
+                      );
+                    } else {
+                      Get.snackbar('Error', 'Could not open Privacy Policy');
+                    }
+                  },
                 ),
                 _ActionTile(
                   icon: Icons.logout,
                   color: Colors.red,
                   title: "Logout",
-                  onTap: controller.logout,
+                  onTap: () => _showLogoutWarning(context),
+                ),
+                _ActionTile(
+                  icon: Icons.delete_forever_outlined,
+                  color: Colors.red.shade700,
+                  title: "Delete Account",
+                  onTap: () => _showDeleteAccountWarning(context),
                 ),
               ],
             ),
@@ -99,6 +113,166 @@ class ProfilePage extends StatelessWidget {
   String _value(String? value) {
     return value == null || value.trim().isEmpty ? "-" : value;
   }
+
+  String _formatGender(String? gender) {
+    if (gender == null || gender.trim().isEmpty) return "-";
+    final lower = gender.trim().toLowerCase();
+    return lower[0].toUpperCase() + lower.substring(1);
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return "-";
+    final local = date.toLocal();
+    final day = local.day.toString().padLeft(2, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final year = local.year.toString();
+    return "$day/$month/$year";
+  }
+
+  void _showLogoutWarning(BuildContext context) {
+    _showConfirmationDialog(
+      context: context,
+      title: "Logout?",
+      message: "Are you sure you want to log out of your account?",
+      confirmText: "Logout",
+      icon: Icons.logout,
+      iconColor: Colors.redAccent,
+      iconBgColor: Colors.red.shade50,
+      confirmButtonColor: Colors.redAccent,
+      onConfirm: () => controller.logout(),
+    );
+  }
+
+  void _showDeleteAccountWarning(BuildContext context) {
+    _showConfirmationDialog(
+      context: context,
+      title: "Delete Account?",
+      message:
+          "Are you sure you want to delete your account? This action cannot be undone and will permanently remove your profile and donation records.",
+      confirmText: "Delete",
+      icon: Icons.warning_amber_rounded,
+      iconColor: Colors.redAccent,
+      iconBgColor: Colors.red.shade50,
+      confirmButtonColor: Colors.redAccent,
+      onConfirm: () async {
+        final uri = Uri.parse(deleteAccountUrl);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(
+            uri,
+            mode: LaunchMode.externalApplication,
+          );
+        } else {
+          Get.snackbar('Error', 'Could not open Account Deletion page');
+        }
+      },
+    );
+  }
+}
+
+void _showConfirmationDialog({
+  required BuildContext context,
+  required String title,
+  required String message,
+  required String confirmText,
+  required IconData icon,
+  required Color iconColor,
+  required Color iconBgColor,
+  required Color confirmButtonColor,
+  required VoidCallback onConfirm,
+}) {
+  showDialog(
+    context: context,
+    builder: (ctx) => Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: Colors.white,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              height: 56,
+              width: 56,
+              decoration: BoxDecoration(
+                color: iconBgColor,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 28),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.w800,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade600,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.textFieldColor,
+                      foregroundColor: Colors.black87,
+                      elevation: 0,
+                      minimumSize: const Size(0, 48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text(
+                      "Cancel",
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: confirmButtonColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      minimumSize: const Size(0, 48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      onConfirm();
+                    },
+                    child: Text(
+                      confirmText,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _Header extends StatelessWidget {
@@ -136,22 +310,74 @@ class _Header extends StatelessWidget {
                 onPressed: onLogout,
               ),
             ),
-            CircleAvatar(
-              radius: 52,
-              backgroundColor: Colors.white,
-              child: ClipOval(
-                child: Image.network(
-                  _profileImage(user.profilePic),
-                  width: 96,
-                  height: 96,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(
-                      Icons.person,
-                      color: Colors.grey,
-                      size: 54,
-                    );
-                  },
+            GestureDetector(
+              onTap: () {
+                final imgUrl = _profileImage(user.profilePic);
+                showDialog(
+                  context: context,
+                  builder: (ctx) => Dialog(
+                    backgroundColor: Colors.black,
+                    insetPadding: const EdgeInsets.all(16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AppBar(
+                          backgroundColor: Colors.black,
+                          elevation: 0,
+                          title: Text(
+                            user.name ?? "Profile Photo",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          leading: IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            onPressed: () => Navigator.of(ctx).pop(),
+                          ),
+                        ),
+                        Flexible(
+                          child: InteractiveViewer(
+                            child: Image.network(
+                              imgUrl,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => const Center(
+                                child: Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                  size: 80,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                    ),
+                  ),
+                );
+              },
+              child: CircleAvatar(
+                radius: 52,
+                backgroundColor: Colors.white,
+                child: ClipOval(
+                  child: Image.network(
+                    _profileImage(user.profilePic),
+                    width: 96,
+                    height: 96,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(
+                        Icons.person,
+                        color: Colors.grey,
+                        size: 54,
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -366,18 +592,19 @@ class _ActionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
+      child: Material(
         color: AppColors.textFieldColor,
         borderRadius: BorderRadius.circular(8),
-      ),
-      child: ListTile(
-        leading: Icon(icon, color: color),
-        title: Text(
-          title,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
+          leading: Icon(icon, color: color),
+          title: Text(
+            title,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          ),
+          trailing: const Icon(Icons.arrow_forward_ios, size: 15),
+          onTap: onTap,
         ),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 15),
-        onTap: onTap,
       ),
     );
   }

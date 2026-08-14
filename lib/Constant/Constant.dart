@@ -3,6 +3,8 @@ import 'package:blood_donation/Models/user_model/user_model.dart';
 String? token;
 UserModel? userModel;
 String baseUrl = "https://bloodapi.anazko.com";
+String privacyPolicyUrl = "https://bloodapp.anazko.com/privacy-policy";
+String deleteAccountUrl = "https://bloodapp.anazko.com/delete-account";
 
 /// Web client ID from Firebase (client_type 3 in google-services.json).
 /// Required so Android returns an idToken.

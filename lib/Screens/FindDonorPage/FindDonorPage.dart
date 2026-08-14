@@ -1,5 +1,6 @@
 import 'package:blood_donation/GlobalWidgets/CustomTextField.dart';
 import 'package:blood_donation/GlobalWidgets/DonorAvatar.dart';
+import 'package:blood_donation/GlobalWidgets/EmptyStateWidget.dart';
 import 'package:blood_donation/Models/blood_donors/donor.dart';
 import 'package:blood_donation/Screens/FindDonorPage/DonorDetailPage.dart';
 import 'package:blood_donation/Theme/AppColors.dart';
@@ -70,7 +71,15 @@ class FindDonorsPage extends StatelessWidget {
                   }
 
                   if (ctrl.bloodDonorsList.isEmpty) {
-                    return const Center(child: Text("No donors found"));
+                    return EmptyStateWidget(
+                      icon: Icons.person_search_rounded,
+                      title: "No Donors Found",
+                      subtitle:
+                          "We couldn't find any $bloodGroup blood donors matching your criteria. Try adjusting your search query or check back later.",
+                      onRetry: () {
+                        controller.getDonors(loadMore: false);
+                      },
+                    );
                   }
 
                   return NotificationListener<ScrollNotification>(
@@ -122,7 +131,7 @@ class FindDonorsPage extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
+              color: Colors.grey.withValues(alpha: 0.1),
               spreadRadius: 2,
               blurRadius: 6,
               offset: const Offset(0, 3),

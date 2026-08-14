@@ -1,0 +1,35 @@
+{
+  "auth": {
+    "providers": {
+      "apple.com": {}
+    }
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "bloodmate-6d726",
+          "appId": "1:354622519459:android:e66dc211b5af79c231a716",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "bloodmate-6d726",
+          "appId": "1:354622519459:ios:b9e25f697d74c76931a716",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "bloodmate-6d726",
+          "configurations": {
+            "android": "1:354622519459:android:e66dc211b5af79c231a716",
+            "ios": "1:354622519459:ios:b9e25f697d74c76931a716"
+          }
+        }
+      }
+    }
+  }
+}

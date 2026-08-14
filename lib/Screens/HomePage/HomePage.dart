@@ -1,5 +1,7 @@
 import 'package:blood_donation/Constant/Constant.dart';
+import 'package:blood_donation/Controller/NavController/BottomNavController.dart';
 import 'package:blood_donation/Screens/FindDonorPage/FindDonorPage.dart';
+import 'package:blood_donation/Screens/ProfilePage/ProfilePage.dart';
 import 'package:blood_donation/Theme/AppColors.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -95,7 +97,7 @@ class HomePage extends StatelessWidget {
                         icon: Icons.phone_outlined,
                         title: "Contact us",
                         subtitle: _supportPhoneDisplay,
-                        color: _softCyan,
+                        iconBgColor: _softCyan,
                         onTap: () => _launchExternalUri(
                           Uri(scheme: 'tel', path: _supportPhoneDial),
                           errorMessage: 'Could not open dialer',
@@ -108,7 +110,7 @@ class HomePage extends StatelessWidget {
                         icon: Icons.email_outlined,
                         title: "Support us",
                         subtitle: _supportEmail,
-                        color: _supportMint,
+                        iconBgColor: _supportMint,
                         onTap: () => _launchExternalUri(
                           Uri(
                             scheme: 'mailto',
@@ -497,46 +499,66 @@ class _StatusBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: _donormateCyan.withValues(alpha: .16),
-            blurRadius: 22,
-            offset: const Offset(0, 9),
+            color: Colors.black.withValues(alpha: .07),
+            blurRadius: 14,
+            spreadRadius: 1,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Container(
-            height: 48,
-            width: 48,
-            decoration: BoxDecoration(color: _softCyan, shape: BoxShape.circle),
-            child: Icon(
-              isDonor ? Icons.verified_outlined : Icons.info_outline_rounded,
-              color: _donormateCyan,
-              size: 27,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: () {
+            if (Get.isRegistered<BottomNavController>()) {
+              Get.find<BottomNavController>().changePage(1);
+            } else {
+              Get.to(() => ProfilePage());
+            }
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
+            child: Row(
+              children: [
+                Container(
+                  height: 48,
+                  width: 48,
+                  decoration: const BoxDecoration(
+                    color: _softCyan,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isDonor ? Icons.verified_outlined : Icons.info_outline_rounded,
+                    color: _donormateCyan,
+                    size: 27,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    isDonor
+                        ? "Your donor profile is\navailable for requests"
+                        : "Turn on donor availability\nfrom your profile",
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontSize: 15,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: _donormateCyan, size: 28),
+              ],
             ),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              isDonor
-                  ? "Your donor profile is\navailable for requests"
-                  : "Turn on donor availability\nfrom your profile",
-              style: const TextStyle(
-                color: Colors.black87,
-                fontSize: 15,
-                height: 1.35,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const Icon(Icons.chevron_right, color: _donormateCyan, size: 28),
-        ],
+        ),
       ),
     );
   }
@@ -591,9 +613,10 @@ class _BloodGroupTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryColor.withValues(alpha: .12),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            color: Colors.black.withValues(alpha: .06),
+            blurRadius: 10,
+            spreadRadius: 1,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -671,77 +694,81 @@ class _SupportTile extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.color,
+    required this.iconBgColor,
     required this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
-  final Color color;
+  final Color iconBgColor;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: color,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        child: Container(
-          height: 130,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: _donormateCyan.withValues(alpha: .10),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: .07),
+            blurRadius: 14,
+            spreadRadius: 1,
+            offset: const Offset(0, 4),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                height: 44,
-                width: 44,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            height: 130,
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  height: 44,
+                  width: 44,
+                  decoration: BoxDecoration(
+                    color: iconBgColor,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: _donormateCyan, size: 25),
                 ),
-                child: Icon(icon, color: _donormateCyan, size: 25),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.black87,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.black54,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

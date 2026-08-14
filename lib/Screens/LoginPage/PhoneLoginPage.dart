@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -30,16 +32,6 @@ class PhoneLoginPage extends StatelessWidget {
                         fit: BoxFit.contain,
                       ),
                       const SizedBox(height: 22),
-                      // const Text(
-                      //   "Connecting donors, saving lives",
-                      //   textAlign: TextAlign.center,
-                      //   style: TextStyle(
-                      //     color: AppColors.bodyTextColor,
-                      //     fontSize: 22,
-                      //     fontWeight: FontWeight.w800,
-                      //   ),
-                      // ),
-                      // const SizedBox(height: 10),
                       const Text(
                         "Sign in to find donors faster and keep your donation profile ready.",
                         textAlign: TextAlign.center,
@@ -84,7 +76,7 @@ class PhoneLoginPage extends StatelessWidget {
                                 const SizedBox(width: 12),
                                 const Expanded(
                                   child: Text(
-                                    "Continue securely with Google",
+                                    "Continue securely",
                                     style: TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w600,
@@ -105,48 +97,97 @@ class PhoneLoginPage extends StatelessWidget {
                                         ),
                                       ),
                                     )
-                                  : ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppColors.primaryColor,
-                                        foregroundColor: Colors.white,
-                                        elevation: 0,
-                                        minimumSize: const Size(
-                                          double.infinity,
-                                          52,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
+                                  : Column(
+                                      children: [
+                                        ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                AppColors.primaryColor,
+                                            foregroundColor: Colors.white,
+                                            elevation: 0,
+                                            minimumSize: const Size(
+                                              double.infinity,
+                                              52,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                          ),
+                                          onPressed:
+                                              controller.signInWithGoogle,
+                                          child: const Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.g_mobiledata,
+                                                size: 34,
+                                              ),
+                                              SizedBox(width: 8),
+                                              Text(
+                                                "Sign in with Google",
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                      ),
-                                      onPressed: controller.signInWithGoogle,
-                                      child: const Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(Icons.g_mobiledata, size: 34),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            "Sign in with Google",
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w700,
+                                        if (Platform.isIOS) ...[
+                                          const SizedBox(height: 12),
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.black,
+                                              foregroundColor: Colors.white,
+                                              elevation: 0,
+                                              minimumSize: const Size(
+                                                double.infinity,
+                                                52,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                            onPressed:
+                                                controller.signInWithApple,
+                                            child: const Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.apple,
+                                                  size: 24,
+                                                ),
+                                                SizedBox(width: 8),
+                                                Text(
+                                                  "Sign in with Apple",
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         ],
-                                      ),
+                                      ],
                                     ),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 24),
-                      const Text(
-                        "New users will complete phone, blood group, and location after Google sign in.",
+                      Text(
+                        Platform.isIOS
+                            ? "New users will complete phone, blood group, and location after Google or Apple sign in."
+                            : "New users will complete phone, blood group, and location after Google sign in.",
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: AppColors.mutedTextColor,
                           fontSize: 13,
                           height: 1.35,

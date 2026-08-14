@@ -15,11 +15,15 @@ class GoogleProfilePage extends StatefulWidget {
 
 class _GoogleProfilePageState extends State<GoogleProfilePage> {
   final AuthController controller = Get.find<AuthController>();
-  final _formKey = GlobalKey<FormState>();
-  final _scrollController = ScrollController();
-  final _genderKey = GlobalKey();
+  final PageController _pageController = PageController();
+  final _step1FormKey = GlobalKey<FormState>();
 
+  int _currentStep = 0;
+  static const int _totalSteps = 3;
+
+  String? _dobError;
   String? _genderError;
+  String? _proofError;
   String? _bloodGroupError;
 
   static const List<String> _bloodGroups = [
@@ -37,7 +41,7 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -57,6 +61,7 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
       setState(() {
         if (isDob) {
           controller.googleDateOfBirth.value = picked;
+          _dobError = null;
         } else {
           controller.googleLastDonationDate.value = picked;
         }
@@ -64,64 +69,56 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
     }
   }
 
-  void _showMissingDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Missing details"),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              "OK",
-              style: TextStyle(color: AppColors.primaryColor),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  void _onNextOrSubmitPressed() {
+    if (_currentStep == 0) {
+      final formValid = _step1FormKey.currentState?.validate() ?? false;
+      final dobMissing = controller.googleDateOfBirth.value == null;
+      final genderMissing = controller.googleGender.value.trim().isEmpty;
 
-  void _scrollToGender() {
-    final genderContext = _genderKey.currentContext;
-    if (genderContext != null) {
-      Scrollable.ensureVisible(
-        genderContext,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        alignment: 0.1,
-      );
-    }
-  }
+      setState(() {
+        _dobError = dobMissing ? "Please select your date of birth" : null;
+        _genderError = genderMissing ? "Please select a gender" : null;
+      });
 
-  void _onSavePressed() {
-    final formValid = _formKey.currentState?.validate() ?? false;
-    final genderMissing = controller.googleGender.value.trim().isEmpty;
-    final bloodMissing = controller.googleBloodGroup.value.trim().isEmpty;
-
-    setState(() {
-      _genderError = genderMissing ? "Please select a gender" : null;
-      _bloodGroupError = bloodMissing ? "Please select a blood group" : null;
-    });
-
-    if (genderMissing || bloodMissing || !formValid) {
-      if (genderMissing) {
-        _scrollToGender();
-        _showMissingDialog("Please select a gender to continue.");
-      } else if (bloodMissing) {
-        _showMissingDialog("Please select a blood group to continue.");
-      } else {
-        _showMissingDialog("Please fill all required fields.");
+      if (formValid && !dobMissing && !genderMissing) {
+        _pageController.nextPage(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
       }
-      return;
-    }
+    } else if (_currentStep == 1) {
+      final hasFront = controller.proofFrontFile.value != null;
+      final hasBack = controller.proofBackFile.value != null;
 
-    controller.completeGoogleProfile();
+      setState(() {
+        _proofError = (!hasFront || !hasBack)
+            ? "Please upload both ID proof front and back"
+            : null;
+      });
+
+      if (hasFront && hasBack) {
+        _pageController.nextPage(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    } else if (_currentStep == 2) {
+      final bloodMissing = controller.googleBloodGroup.value.trim().isEmpty;
+
+      setState(() {
+        _bloodGroupError = bloodMissing ? "Please select a blood group" : null;
+      });
+
+      if (!bloodMissing) {
+        controller.completeGoogleProfile();
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final progress = (_currentStep + 1) / _totalSteps;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -139,231 +136,395 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
         ),
       ),
       body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            controller: _scrollController,
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        child: Column(
+          children: [
+            _buildProgressHeader(progress),
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(),
+                onPageChanged: (index) {
+                  setState(() {
+                    _currentStep = index;
+                  });
+                },
+                children: [
+                  _buildStep1Personal(),
+                  _buildStep2Uploads(),
+                  _buildStep3Donation(),
+                ],
+              ),
+            ),
+            _buildBottomBar(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressHeader(double progress) {
+    final stepTitles = [
+      "Personal & Contact",
+      "ID & Photo Uploads",
+      "Donation Details",
+    ];
+
+    return Column(
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          child: LinearProgressIndicator(
+            value: progress,
+            backgroundColor: AppColors.primaryColor.withValues(alpha: .12),
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
+            minHeight: 5,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  color: AppColors.primaryColor,
-                ),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      height: 62,
-                      width: 62,
-                      child: Icon(
-                        Icons.water_drop,
-                        color: AppColors.whiteColor,
-                        size: 36,
-                      ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "STEP ${_currentStep + 1} OF $_totalSteps",
+                    style: TextStyle(
+                      color: AppColors.primaryColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.1,
                     ),
-                    const SizedBox(width: 14),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Donor profile",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            "Add the details donors and receivers need.",
-                            style: TextStyle(
-                              color: AppColors.backgroundColor,
-                              fontSize: 14,
-                              height: 1.35,
-                            ),
-                          ),
-                        ],
-                      ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    stepTitles[_currentStep],
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 22),
-              _GlassPanel(
-                title: "Personal",
-                icon: Icons.badge_outlined,
-                child: Column(
-                  children: [
-                    _TextInput(
-                      label: "Name",
-                      icon: Icons.person_outline,
-                      controller: controller.googleName,
-                      validator: (value) =>
-                          _required(value, "Name is required"),
+              Row(
+                children: List.generate(_totalSteps, (index) {
+                  final isDone = index < _currentStep;
+                  final isCurrent = index == _currentStep;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    margin: const EdgeInsets.only(left: 6),
+                    height: 10,
+                    width: isCurrent ? 24 : 10,
+                    decoration: BoxDecoration(
+                      color: isCurrent
+                          ? AppColors.primaryColor
+                          : isDone
+                              ? AppColors.primaryColor.withValues(alpha: .5)
+                              : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(5),
                     ),
-                    const SizedBox(height: 12),
-                    _DateInput(
-                      label: "Date of Birth",
-                      icon: Icons.calendar_today_outlined,
-                      date: controller.googleDateOfBirth,
-                      onTap: () => _pickDate(context, true),
-                      validator: () =>
-                          controller.googleDateOfBirth.value == null
-                          ? "Date of birth is required"
-                          : null,
-                    ),
-                    const SizedBox(height: 12),
-                    KeyedSubtree(
-                      key: _genderKey,
-                      child: _ChoiceRow(
-                        label: "Gender",
-                        values: _genders,
-                        selected: controller.googleGender,
-                        showLabel: true,
-                        errorText: _genderError,
-                        onSelected: () {
-                          setState(() => _genderError = null);
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              _GlassPanel(
-                title: "Uploads",
-                icon: Icons.cloud_upload_outlined,
-                child: Column(
-                  children: [
-                    ProfilePhotoPicker(controller: controller),
-                    const SizedBox(height: 12),
-                    ProofDocumentPicker(
-                      controller: controller,
-                      requireProof: true,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              _GlassPanel(
-                title: "Contact",
-                icon: Icons.call_outlined,
-                child: Column(
-                  children: [
-                    _TextInput(
-                      label: "Phone",
-                      icon: Icons.phone_outlined,
-                      controller: controller.googlePhone,
-                      keyboardType: TextInputType.phone,
-                      validator: (value) {
-                        final message = _required(
-                          value,
-                          "Phone number is required",
-                        );
-                        if (message != null) {
-                          return message;
-                        }
-                        if (!RegExp(r'^[0-9]{10}$').hasMatch(value!.trim())) {
-                          return "Enter a valid 10-digit phone number";
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    _TextInput(
-                      label: "Address",
-                      icon: Icons.home_outlined,
-                      controller: controller.googleAddress,
-                      validator: (value) {
-                        final message = _required(value, "Address is required");
-                        if (message != null) {
-                          return message;
-                        }
-                        if (value!.trim().length < 5) {
-                          return "Enter a valid address";
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    _TextInput(
-                      label: "Place",
-                      icon: Icons.location_on_outlined,
-                      controller: controller.googlePlace,
-                      validator: (value) {
-                        final message = _required(value, "Place is required");
-                        if (message != null) {
-                          return message;
-                        }
-                        if (value!.trim().length < 3) {
-                          return "Enter a valid place";
-                        }
-                        return null;
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              _GlassPanel(
-                title: "Donation",
-                icon: Icons.bloodtype_outlined,
-                child: Column(
-                  children: [
-                    _BloodGroupPicker(
-                      bloodGroups: _bloodGroups,
-                      selected: controller.googleBloodGroup,
-                      errorText: _bloodGroupError,
-                      onSelected: () {
-                        setState(() => _bloodGroupError = null);
-                      },
-                    ),
-                    const SizedBox(height: 18),
-                    _DonorSwitch(controller: controller),
-                    const SizedBox(height: 12),
-                    _DateInput(
-                      label: "Last Donation Date",
-                      icon: Icons.event_available_outlined,
-                      date: controller.googleLastDonationDate,
-                      onTap: () => _pickDate(context, false),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 28),
-              Obx(
-                () =>
-                    controller.isGoogleProfileLoading.value ||
-                        controller.isMediaUploadLoading.value
-                    ? Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primaryColor,
-                        ),
-                      )
-                    : ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryColor,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          minimumSize: const Size(double.infinity, 54),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        onPressed: _onSavePressed,
-                        child: const Text(
-                          "Save Profile",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
+                  );
+                }),
               ),
             ],
           ),
+        ),
+        const Divider(height: 1, thickness: 1, color: Color(0xFFEEEEEE)),
+      ],
+    );
+  }
+
+  Widget _buildStep1Personal() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      child: Form(
+        key: _step1FormKey,
+        child: Column(
+          children: [
+            _GlassPanel(
+              title: "Personal Information",
+              icon: Icons.person_outline,
+              child: Column(
+                children: [
+                  _TextInput(
+                    label: "Name",
+                    icon: Icons.person_outline,
+                    controller: controller.googleName,
+                    validator: (value) => _required(value, "Name is required"),
+                  ),
+                  const SizedBox(height: 12),
+                  _DateInput(
+                    label: "Date of Birth",
+                    icon: Icons.calendar_today_outlined,
+                    date: controller.googleDateOfBirth,
+                    isDob: true,
+                    onTap: () => _pickDate(context, true),
+                    errorText: _dobError,
+                  ),
+                  const SizedBox(height: 12),
+                  _ChoiceRow(
+                    label: "Gender",
+                    values: _genders,
+                    selected: controller.googleGender,
+                    showLabel: true,
+                    errorText: _genderError,
+                    onSelected: () {
+                      setState(() => _genderError = null);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            _GlassPanel(
+              title: "Contact & Location",
+              icon: Icons.call_outlined,
+              child: Column(
+                children: [
+                  _TextInput(
+                    label: "Phone",
+                    icon: Icons.phone_outlined,
+                    controller: controller.googlePhone,
+                    keyboardType: TextInputType.phone,
+                    validator: (value) {
+                      final message = _required(
+                        value,
+                        "Phone number is required",
+                      );
+                      if (message != null) return message;
+                      if (!RegExp(r'^[0-9]{10}$').hasMatch(value!.trim())) {
+                        return "Enter a valid 10-digit phone number";
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _TextInput(
+                    label: "Address",
+                    icon: Icons.home_outlined,
+                    controller: controller.googleAddress,
+                    validator: (value) {
+                      final message = _required(value, "Address is required");
+                      if (message != null) return message;
+                      if (value!.trim().length < 5) {
+                        return "Enter a valid address";
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _TextInput(
+                    label: "Place",
+                    icon: Icons.location_on_outlined,
+                    controller: controller.googlePlace,
+                    validator: (value) {
+                      final message = _required(value, "Place is required");
+                      if (message != null) return message;
+                      if (value!.trim().length < 3) {
+                        return "Enter a valid place";
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStep2Uploads() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      child: Column(
+        children: [
+          _GlassPanel(
+            title: "Profile Photo & Identification",
+            icon: Icons.cloud_upload_outlined,
+            child: Column(
+              children: [
+                ProfilePhotoPicker(controller: controller),
+                const SizedBox(height: 14),
+                ProofDocumentPicker(
+                  controller: controller,
+                  requireProof: true,
+                ),
+                if (_proofError != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent.withValues(alpha: .1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.redAccent.withValues(alpha: .3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          color: Colors.redAccent,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _proofError!,
+                            style: const TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStep3Donation() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      child: Column(
+        children: [
+          _GlassPanel(
+            title: "Blood Group & Donation Status",
+            icon: Icons.bloodtype_outlined,
+            child: Column(
+              children: [
+                _BloodGroupPicker(
+                  bloodGroups: _bloodGroups,
+                  selected: controller.googleBloodGroup,
+                  errorText: _bloodGroupError,
+                  onSelected: () {
+                    setState(() => _bloodGroupError = null);
+                  },
+                ),
+                const SizedBox(height: 18),
+                _DonorSwitch(controller: controller),
+                const SizedBox(height: 12),
+                _DateInput(
+                  label: "Last Donation Date (Optional)",
+                  icon: Icons.event_available_outlined,
+                  date: controller.googleLastDonationDate,
+                  onTap: () => _pickDate(context, false),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: .06),
+            blurRadius: 16,
+            offset: const Offset(0, -6),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            if (_currentStep > 0) ...[
+              Expanded(
+                flex: 1,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.black87,
+                    side: BorderSide(color: Colors.grey.shade300),
+                    minimumSize: const Size(0, 52),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: () {
+                    _pageController.previousPage(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                  },
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.arrow_back, size: 18),
+                      SizedBox(width: 6),
+                      Text("Back", style: TextStyle(fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+            ],
+            Expanded(
+              flex: 2,
+              child: Obx(
+                () {
+                  final isBusy = controller.isGoogleProfileLoading.value ||
+                      controller.isMediaUploadLoading.value;
+                  return ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      minimumSize: const Size(double.infinity, 52),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    onPressed: isBusy ? null : _onNextOrSubmitPressed,
+                    child: isBusy
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                _currentStep == _totalSteps - 1
+                                    ? "Complete Profile ✓"
+                                    : "Continue →",
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -417,7 +578,7 @@ class _GlassPanel extends StatelessWidget {
                 height: 36,
                 width: 36,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withOpacity(.12),
+                  color: AppColors.primaryColor.withValues(alpha: .12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: AppColors.primaryColor, size: 20),
@@ -523,8 +684,8 @@ class _ChoiceRow extends StatelessWidget {
                           color: hasError && !isSelected
                               ? Colors.redAccent
                               : isSelected
-                              ? AppColors.primaryColor
-                              : Colors.white,
+                                  ? AppColors.primaryColor
+                                  : Colors.white,
                           width: hasError && !isSelected ? 1.5 : 1,
                         ),
                       ),
@@ -621,8 +782,8 @@ class _BloodGroupPicker extends StatelessWidget {
                       color: hasError && !isSelected
                           ? Colors.redAccent
                           : isSelected
-                          ? AppColors.primaryColor
-                          : Colors.white,
+                              ? AppColors.primaryColor
+                              : Colors.white,
                       width: hasError && !isSelected ? 1.5 : 1,
                     ),
                   ),
@@ -685,7 +846,7 @@ class _DonorSwitch extends StatelessWidget {
             ),
             Switch(
               value: controller.googleIsDonor.value,
-              activeColor: AppColors.primaryColor,
+              activeThumbColor: AppColors.primaryColor,
               onChanged: (value) => controller.googleIsDonor.value = value,
             ),
           ],
@@ -701,44 +862,85 @@ class _DateInput extends StatelessWidget {
     required this.icon,
     required this.date,
     required this.onTap,
-    this.validator,
+    this.isDob = false,
+    this.errorText,
   });
 
   final String label;
   final IconData icon;
   final Rxn<DateTime> date;
   final VoidCallback onTap;
-  final String? Function()? validator;
+  final bool isDob;
+  final String? errorText;
+
+  int? _calculateAge(DateTime? dob) {
+    if (dob == null) return null;
+    final now = DateTime.now();
+    int age = now.year - dob.year;
+    if (now.month < dob.month ||
+        (now.month == dob.month && now.day < dob.day)) {
+      age--;
+    }
+    return age;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return FormField<DateTime>(
-      validator: (_) => validator?.call(),
-      builder: (field) {
-        return Obx(() {
-          final selectedDate = date.value;
-          return InkWell(
+    final hasError = errorText != null && errorText!.isNotEmpty;
+
+    return Obx(() {
+      final selectedDate = date.value;
+      final age = isDob ? _calculateAge(selectedDate) : null;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
             onTap: onTap,
             borderRadius: BorderRadius.circular(8),
             child: InputDecorator(
-              decoration: _inputDecoration(
-                label,
-                icon,
-              ).copyWith(errorText: field.errorText),
-              child: Text(
-                selectedDate == null
-                    ? label
-                    : DateFormat("dd/MM/yyyy").format(selectedDate),
-                style: TextStyle(
-                  color: selectedDate == null ? Colors.black54 : Colors.black87,
-                  fontSize: 16,
-                ),
+              decoration: _inputDecoration(label, icon).copyWith(
+                errorText: hasError ? errorText : null,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    selectedDate == null
+                        ? label
+                        : DateFormat("dd/MM/yyyy").format(selectedDate),
+                    style: TextStyle(
+                      color: selectedDate == null
+                          ? Colors.black54
+                          : Colors.black87,
+                      fontSize: 16,
+                    ),
+                  ),
+                  if (isDob && age != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryColor.withValues(alpha: .12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        "$age yrs old",
+                        style: TextStyle(
+                          color: AppColors.primaryColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
-          );
-        });
-      },
-    );
+          ),
+        ],
+      );
+    });
   }
 }
 
@@ -770,17 +972,17 @@ InputDecoration _inputDecoration(String hintText, IconData icon) {
 
 BoxDecoration _panelDecoration() {
   return BoxDecoration(
-    color: Colors.white.withOpacity(.92),
+    color: Colors.white.withValues(alpha: .92),
     borderRadius: BorderRadius.circular(8),
     border: Border.all(color: Colors.white),
     boxShadow: [
       BoxShadow(
-        color: Colors.black.withOpacity(.08),
+        color: Colors.black.withValues(alpha: .08),
         blurRadius: 24,
         offset: const Offset(0, 14),
       ),
       BoxShadow(
-        color: AppColors.primaryColor.withOpacity(.06),
+        color: AppColors.primaryColor.withValues(alpha: .06),
         blurRadius: 18,
         offset: const Offset(0, 6),
       ),

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:blood_donation/Constant/Constant.dart';
 import 'package:blood_donation/Models/user_model/user_model.dart';
@@ -8,7 +9,9 @@ import 'package:blood_donation/Screens/NavigationPage.dart';
 import 'package:blood_donation/Service/ApiService.dart';
 import 'package:blood_donation/Theme/AppColors.dart';
 import 'package:blood_donation/Utils/image_compressor.dart';
+import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -16,6 +19,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../Screens/LoginPage/GoogleProfilePage.dart';
 import '../../Screens/LoginPage/PhoneLoginPage.dart';
@@ -259,19 +263,35 @@ class AuthController extends GetxController {
 
   Future<bool> _loginWithIdToken(
     String idToken, {
+    String endpoint = "/api/v1/user/google-login",
+    String providerName = "Google",
+    String? rawAppleToken,
+    Map<String, dynamic>? appleDetails,
     required bool showErrors,
   }) async {
-    const endpoint = "/api/v1/user/google-login";
-
     try {
-      print("Google id token received");
+      print("$providerName id token received");
+
+      final body = <String, dynamic>{
+        "idToken": idToken,
+        "token": idToken,
+        if (rawAppleToken != null && rawAppleToken.isNotEmpty) ...{
+          "identityToken": rawAppleToken,
+          "appleToken": rawAppleToken,
+        },
+        if (appleDetails != null) ...appleDetails,
+      };
 
       final response = await _apiService
-          .postRequest(endpoint, {"idToken": idToken})
+          .postRequest(
+            endpoint,
+            body,
+            bearerToken: idToken,
+          )
           .timeout(const Duration(seconds: 25));
 
       print(
-        "Google login response: ${response.statusCode} ${response.statusText} ${response.body}",
+        "$providerName login response: ${response.statusCode} ${response.statusText} ${response.body}",
       );
 
       if (response.isOk) {
@@ -279,7 +299,7 @@ class AuthController extends GetxController {
         if (jwtToken == null || jwtToken.isEmpty) {
           if (showErrors) {
             _showAuthError(
-              "Google sign in failed",
+              "$providerName sign in failed",
               "Server accepted the request but did not return a token.",
             );
           }
@@ -296,7 +316,7 @@ class AuthController extends GetxController {
         if (!hasUserData && token == null) {
           if (showErrors) {
             _showAuthError(
-              "Google sign in failed",
+              "$providerName sign in failed",
               "Your saved session was rejected. Please try signing in again.",
             );
           }
@@ -306,7 +326,7 @@ class AuthController extends GetxController {
         if (!hasUserData && !hasResponseUser) {
           if (showErrors) {
             _showAuthError(
-              "Google sign in failed",
+              "$providerName sign in failed",
               "Could not load your profile. Please try again.",
             );
           }
@@ -324,7 +344,7 @@ class AuthController extends GetxController {
 
       if (response.statusCode == null) {
         _showAuthError(
-          "Google sign in failed",
+          "$providerName sign in failed",
           _messageFromResponse(
             response.body,
             response.statusCode,
@@ -336,14 +356,14 @@ class AuthController extends GetxController {
 
       if (response.statusCode == 404) {
         _showAuthError(
-          "Google login API missing",
-          "Backend route POST /api/v1/user/google-login was not found.",
+          "$providerName login API missing",
+          "Backend route POST $endpoint was not found.",
         );
         return false;
       }
 
       _showSnack(
-        "Google sign in failed",
+        "$providerName sign in failed",
         _messageFromResponse(
           response.body,
           response.statusCode,
@@ -355,19 +375,19 @@ class AuthController extends GetxController {
     } on TimeoutException {
       if (showErrors) {
         _showAuthError(
-          "Google sign in timed out",
-          "The app did not get a response from /api/v1/user/google-login.",
+          "$providerName sign in timed out",
+          "The app did not get a response from $endpoint.",
         );
       }
       return false;
     } catch (e) {
-      print("Backend google login error: $e");
+      print("Backend $providerName login error: $e");
       if (showErrors) {
         _showAuthError(
-          "Google sign in failed",
+          "$providerName sign in failed",
           _friendlyErrorMessage(
             e,
-            fallback: "Google sign in failed. Please try again.",
+            fallback: "$providerName sign in failed. Please try again.",
           ),
         );
       }
@@ -438,6 +458,145 @@ class AuthController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  /// Sign in with Apple → Firebase Auth → POST /api/v1/user/apple-login
+  Future<void> signInWithApple() async {
+    if (!Platform.isIOS && !Platform.isMacOS) {
+      _showAuthError(
+        "Not available",
+        "Sign in with Apple is only available on Apple devices.",
+      );
+      return;
+    }
+
+    isLoading.value = true;
+    try {
+      final available = await SignInWithApple.isAvailable();
+      if (!available) {
+        _showAuthError(
+          "Sign in with Apple unavailable",
+          "This device does not support Sign in with Apple.",
+        );
+        return;
+      }
+
+      final rawNonce = _generateNonce();
+      final nonce = _sha256ofString(rawNonce);
+
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: nonce,
+      );
+
+      final identityToken = appleCredential.identityToken;
+      if (identityToken == null || identityToken.isEmpty) {
+        _showAuthError(
+          "Apple sign in failed",
+          "Apple did not return an identity token. Please try again.",
+        );
+        return;
+      }
+
+      final oauthCredential = OAuthProvider('apple.com').credential(
+        idToken: identityToken,
+        rawNonce: rawNonce,
+        accessToken: appleCredential.authorizationCode,
+      );
+
+      final userCredential =
+          await _firebaseAuth.signInWithCredential(oauthCredential);
+
+      // Prefer given name from Apple (only provided on first authorization).
+      final givenName = appleCredential.givenName;
+      final familyName = appleCredential.familyName;
+      if ((givenName != null && givenName.isNotEmpty) ||
+          (familyName != null && familyName.isNotEmpty)) {
+        final displayName = [givenName, familyName]
+            .where((part) => part != null && part.trim().isNotEmpty)
+            .join(' ')
+            .trim();
+        if (displayName.isNotEmpty &&
+            (userCredential.user?.displayName == null ||
+                userCredential.user!.displayName!.isEmpty)) {
+          await userCredential.user?.updateDisplayName(displayName);
+        }
+      }
+
+      final firebaseIdToken = await userCredential.user?.getIdToken();
+      if (firebaseIdToken == null || firebaseIdToken.isEmpty) {
+        _showAuthError(
+          "Apple sign in failed",
+          "Could not get a Firebase token after Apple sign in.",
+        );
+        return;
+      }
+
+      await _loginWithIdToken(
+        firebaseIdToken,
+        endpoint: "/api/v1/user/apple-login",
+        providerName: "Apple",
+        rawAppleToken: identityToken,
+        appleDetails: {
+          "authorizationCode": appleCredential.authorizationCode,
+          "userIdentifier": appleCredential.userIdentifier,
+          if (appleCredential.email != null && appleCredential.email!.isNotEmpty)
+            "email": appleCredential.email,
+          if (givenName != null && givenName.isNotEmpty) "givenName": givenName,
+          if (familyName != null && familyName.isNotEmpty)
+            "familyName": familyName,
+        },
+        showErrors: true,
+      );
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        _showSnack(
+          "Apple sign in cancelled",
+          "Sign in with Apple was cancelled.",
+        );
+        return;
+      }
+      _showAuthError(
+        "Apple sign in failed",
+        e.message.isNotEmpty ? e.message : e.code.toString(),
+      );
+    } on FirebaseAuthException catch (e) {
+      print("Firebase Apple auth error: ${e.code} ${e.message}");
+      _showAuthError(
+        "Apple sign in failed",
+        e.message ?? e.code,
+      );
+    } catch (e) {
+      print("Apple sign in error: $e");
+      _showAuthError(
+        "Apple sign in failed",
+        _friendlyErrorMessage(
+          e,
+          fallback: "Apple sign in failed. Please try again.",
+        ),
+      );
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  String _generateNonce([int length = 32]) {
+    const charset =
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+    final random = Random.secure();
+    return List.generate(
+      length,
+      (_) => charset[random.nextInt(charset.length)],
+    ).join();
+  }
+
+  String _sha256ofString(String input) {
+    final bytes = utf8.encode(input);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
   }
 
   String _messageFromResponse(
@@ -701,22 +860,24 @@ class AuthController extends GetxController {
     return file.path.split(Platform.pathSeparator).last;
   }
 
+  final ImagePicker _imagePicker = ImagePicker();
+
   Future<void> pickProfilePic() async {
-    final file = await _pickFile(type: FileType.image, compressImage: true);
+    final file = await _selectImageFile();
     if (file != null) {
       selectedProfilePic.value = file;
     }
   }
 
   Future<void> pickProofFront() async {
-    final file = await _pickProofFile();
+    final file = await _selectImageFile();
     if (file != null) {
       proofFrontFile.value = file;
     }
   }
 
   Future<void> pickProofBack() async {
-    final file = await _pickProofFile();
+    final file = await _selectImageFile();
     if (file != null) {
       proofBackFile.value = file;
     }
@@ -740,44 +901,161 @@ class AuthController extends GetxController {
     proofBackFile.value = null;
   }
 
-  Future<File?> _pickProofFile() {
-    return _pickFile(
-      type: FileType.custom,
-      allowedExtensions: const ["jpg", "jpeg", "png", "pdf"],
-      compressImage: true,
-    );
+  bool _isImageExtension(String path) {
+    final ext = p.extension(path).toLowerCase().replaceAll('.', '');
+    return const ["jpg", "jpeg", "png", "webp", "heic", "heif"].contains(ext);
   }
 
-  Future<File?> _pickFile({
-    required FileType type,
-    List<String>? allowedExtensions,
-    bool compressImage = false,
+  Future<File?> _selectImageFile() async {
+    final context = Get.context;
+    if (context == null) {
+      return _pickImage(source: ImageSource.gallery);
+    }
+
+    final option = await showModalBottomSheet<_ImagePickOption>(
+      context: context,
+      backgroundColor: AppColors.whiteColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Text(
+                    "Choose Image Source",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    leading: const Icon(
+                      Icons.photo_library_outlined,
+                      color: AppColors.primaryColor,
+                    ),
+                    title: const Text(
+                      "Photo Library / Gallery",
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: const Text(
+                      "Select from iOS Photos or Android Gallery",
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    onTap: () => Navigator.of(ctx).pop(_ImagePickOption.gallery),
+                  ),
+                ),
+                Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    leading: const Icon(
+                      Icons.camera_alt_outlined,
+                      color: AppColors.primaryColor,
+                    ),
+                    title: const Text(
+                      "Camera",
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: const Text(
+                      "Take a new photo with camera",
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    onTap: () => Navigator.of(ctx).pop(_ImagePickOption.camera),
+                  ),
+                ),
+                Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    leading: const Icon(
+                      Icons.folder_open_outlined,
+                      color: AppColors.primaryColor,
+                    ),
+                    title: const Text(
+                      "Files App",
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: const Text(
+                      "Browse files on your device",
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    onTap: () => Navigator.of(ctx).pop(_ImagePickOption.files),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (option == null) {
+      return null;
+    }
+
+    switch (option) {
+      case _ImagePickOption.gallery:
+        return _pickImage(source: ImageSource.gallery);
+      case _ImagePickOption.camera:
+        return _pickImage(source: ImageSource.camera);
+      case _ImagePickOption.files:
+        return _pickImage(useFilePicker: true);
+    }
+  }
+
+  Future<File?> _pickImage({
+    ImageSource? source,
+    bool useFilePicker = false,
   }) async {
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: type,
-        allowedExtensions: allowedExtensions,
-        allowMultiple: false,
-      );
-      final path = result?.files.single.path;
+      String? path;
+      if (useFilePicker) {
+        final result = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: const ["jpg", "jpeg", "png", "webp", "heic", "heif"],
+          allowMultiple: false,
+        );
+        path = result?.files.single.path;
+      } else {
+        final selectedSource = source ?? ImageSource.gallery;
+        final XFile? xFile = await _imagePicker.pickImage(
+          source: selectedSource,
+          imageQuality: 90,
+        );
+        path = xFile?.path;
+      }
+
       if (path == null || path.isEmpty) {
         return null;
       }
 
-      // Copy out of file_picker cache — some devices delete that path quickly.
-      final picked = await _persistPickedFile(File(path));
-      if (!compressImage) {
-        return picked;
+      if (!_isImageExtension(path)) {
+        _showSnack(
+          "Invalid file format",
+          "Only image files (JPG, JPEG, PNG, WEBP, HEIC) are allowed.",
+        );
+        return null;
       }
 
+      final picked = await _persistPickedFile(File(path));
       return await ImageCompressor.compressIfNeeded(picked);
     } catch (e) {
-      debugPrint("File picker error: $e");
+      debugPrint("Image selection error: $e");
       _showSnack(
-        "File selection failed",
+        "Image selection failed",
         _friendlyErrorMessage(
           e,
-          fallback: "Could not select the file. Please try again.",
+          fallback: "Could not select the image. Please try again.",
         ),
       );
       return null;
@@ -806,9 +1084,7 @@ class AuthController extends GetxController {
 
       if (response.isOk) {
         userModel = UserModel.fromJson(response.body);
-        if (userModel?.user?.isDonor != googleIsDonor.value) {
-          await _syncGoogleProfileDetails(data);
-        }
+        await _syncGoogleProfileDetails(data);
         final filesUploaded = await _uploadSelectedMediaIfNeeded();
         if (!filesUploaded) {
           return;
@@ -1361,3 +1637,5 @@ class AuthController extends GetxController {
     checkAuth();
   }
 }
+
+enum _ImagePickOption { gallery, camera, files }

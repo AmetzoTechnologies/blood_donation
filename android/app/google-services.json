@@ -53,6 +53,13 @@
             {
               "client_id": "354622519459-ld4snk9mrq369vt5qgblp9u3nm9q5rs3.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "354622519459-tmfesp9s3hbepvvgfhci6udesnssgjc9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.amtzo.bloodDonation"
+              }
             }
           ]
         }
