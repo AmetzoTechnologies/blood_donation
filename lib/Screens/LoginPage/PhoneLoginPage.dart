@@ -184,8 +184,8 @@ class PhoneLoginPage extends StatelessWidget {
                       const SizedBox(height: 24),
                       Text(
                         Platform.isIOS
-                            ? "New users will complete phone, blood group, and location after Google or Apple sign in."
-                            : "New users will complete phone, blood group, and location after Google sign in.",
+                            ? "New users will complete name, phone, date of birth, and blood group after Google or Apple sign in."
+                            : "New users will complete name, phone, date of birth, and blood group after Google sign in.",
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: AppColors.mutedTextColor,

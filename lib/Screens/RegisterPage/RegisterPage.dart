@@ -60,13 +60,26 @@ class RegisterPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 40),
 
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      "* Required",
+                      style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
                   // Input fields
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     spacing: 10,
                     children: [
                       CustomTextField(
-                        hintText: "UserName",
+                        hintText: "UserName *",
                         prefixIcon: Icons.person,
                         controller: controller.usernameController,
                         validator: (value) {
@@ -91,7 +104,7 @@ class RegisterPage extends StatelessWidget {
                       //   },
                       // ),
                       CustomTextField(
-                        hintText: "Password",
+                        hintText: "Password *",
                         prefixIcon: Icons.password,
                         controller: controller.passwordController,
                         validator: (value) {
@@ -104,7 +117,7 @@ class RegisterPage extends StatelessWidget {
                         },
                       ),
                       CustomTextField(
-                        hintText: "Phone",
+                        hintText: "Phone *",
                         prefixIcon: Icons.phone,
                         controller: controller.phoneController,
                         validator: (value) {
@@ -118,7 +131,7 @@ class RegisterPage extends StatelessWidget {
                         },
                       ),
                       CustomTextField(
-                        hintText: "Blood Groups",
+                        hintText: "Blood Groups *",
                         prefixIcon: Icons.bloodtype,
                         controller: controller.bloodGroupController,
                         validator: (value) {
@@ -150,7 +163,7 @@ class RegisterPage extends StatelessWidget {
                         controller: controller.locationController,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return "Location is required";
+                            return null;
                           }
                           if (value.length < 3) {
                             return "Enter a valid location";
@@ -159,15 +172,10 @@ class RegisterPage extends StatelessWidget {
                         },
                       ),
                       CustomDropdownField(
-                        hintText: "Select Gender",
+                        hintText: "Gender",
                         items: ["Male", "Female", "Other"],
                         selectedValue: controller.gender,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return "Please select a gender";
-                          }
-                          return null;
-                        },
+                        validator: (value) => null,
                       ),
                       // DOB (required)
                       Obx(
@@ -217,7 +225,7 @@ class RegisterPage extends StatelessWidget {
                               decoration: InputDecoration(
                                 hintText:
                                     controller.lastDonatedDate.value == null
-                                    ? "Last Donated Date (Optional)"
+                                    ? "Last donation date"
                                     : DateFormat("dd/MM/yyyy").format(
                                         controller.lastDonatedDate.value!,
                                       ),

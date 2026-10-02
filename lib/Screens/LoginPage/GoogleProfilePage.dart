@@ -73,14 +73,13 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
     if (_currentStep == 0) {
       final formValid = _step1FormKey.currentState?.validate() ?? false;
       final dobMissing = controller.googleDateOfBirth.value == null;
-      final genderMissing = controller.googleGender.value.trim().isEmpty;
 
       setState(() {
         _dobError = dobMissing ? "Please select your date of birth" : null;
-        _genderError = genderMissing ? "Please select a gender" : null;
+        _genderError = null;
       });
 
-      if (formValid && !dobMissing && !genderMissing) {
+      if (formValid && !dobMissing) {
         _pageController.nextPage(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
@@ -89,14 +88,15 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
     } else if (_currentStep == 1) {
       final hasFront = controller.proofFrontFile.value != null;
       final hasBack = controller.proofBackFile.value != null;
+      final proofIncomplete = hasFront != hasBack;
 
       setState(() {
-        _proofError = (!hasFront || !hasBack)
-            ? "Please upload both ID proof front and back"
+        _proofError = proofIncomplete
+            ? "Upload both sides, or skip"
             : null;
       });
 
-      if (hasFront && hasBack) {
+      if (!proofIncomplete) {
         _pageController.nextPage(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
@@ -137,6 +137,20 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
         child: Column(
           children: [
             _buildStepProgressHeader(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(28, 0, 28, 4),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  "* Required",
+                  style: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
             Expanded(
               child: PageView(
                 controller: _pageController,
@@ -271,6 +285,7 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
                 children: [
                   _TextInput(
                     label: "Name",
+                    isRequired: true,
                     icon: Icons.person_outline,
                     controller: controller.googleName,
                     validator: (value) => _required(value, "Name is required"),
@@ -278,6 +293,7 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
                   const SizedBox(height: 12),
                   _DateInput(
                     label: "Date of Birth",
+                    isRequired: true,
                     icon: Icons.calendar_today_outlined,
                     date: controller.googleDateOfBirth,
                     isDob: true,
@@ -306,16 +322,16 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
                 children: [
                   _TextInput(
                     label: "Phone",
+                    isRequired: true,
                     icon: Icons.phone_outlined,
                     controller: controller.googlePhone,
                     keyboardType: TextInputType.phone,
                     validator: (value) {
-                      final message = _required(
-                        value,
-                        "Phone number is required",
-                      );
-                      if (message != null) return message;
-                      if (!RegExp(r'^[0-9]{10}$').hasMatch(value!.trim())) {
+                      final trimmed = value?.trim() ?? "";
+                      if (trimmed.isEmpty) {
+                        return "Phone number is required";
+                      }
+                      if (!RegExp(r'^[0-9]{10}$').hasMatch(trimmed)) {
                         return "Enter a valid 10-digit phone number";
                       }
                       return null;
@@ -327,9 +343,9 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
                     icon: Icons.home_outlined,
                     controller: controller.googleAddress,
                     validator: (value) {
-                      final message = _required(value, "Address is required");
-                      if (message != null) return message;
-                      if (value!.trim().length < 5) {
+                      final trimmed = value?.trim() ?? "";
+                      if (trimmed.isEmpty) return null;
+                      if (trimmed.length < 5) {
                         return "Enter a valid address";
                       }
                       return null;
@@ -341,9 +357,9 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
                     icon: Icons.location_on_outlined,
                     controller: controller.googlePlace,
                     validator: (value) {
-                      final message = _required(value, "Place is required");
-                      if (message != null) return message;
-                      if (value!.trim().length < 3) {
+                      final trimmed = value?.trim() ?? "";
+                      if (trimmed.isEmpty) return null;
+                      if (trimmed.length < 3) {
                         return "Enter a valid place";
                       }
                       return null;
@@ -364,7 +380,7 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
       child: Column(
         children: [
           _GlassPanel(
-            title: "Profile Photo & Identification",
+            title: "Photo & ID",
             icon: Icons.cloud_upload_outlined,
             child: Column(
               children: [
@@ -372,7 +388,7 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
                 const SizedBox(height: 14),
                 ProofDocumentPicker(
                   controller: controller,
-                  requireProof: true,
+                  requireProof: false,
                 ),
                 if (_proofError != null) ...[
                   const SizedBox(height: 12),
@@ -432,6 +448,7 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
                 _BloodGroupPicker(
                   bloodGroups: _bloodGroups,
                   selected: controller.googleBloodGroup,
+                  isRequired: true,
                   errorText: _bloodGroupError,
                   onSelected: () {
                     setState(() => _bloodGroupError = null);
@@ -441,7 +458,7 @@ class _GoogleProfilePageState extends State<GoogleProfilePage> {
                 _DonorSwitch(controller: controller),
                 const SizedBox(height: 12),
                 _DateInput(
-                  label: "Last Donation Date (Optional)",
+                  label: "Last donation",
                   icon: Icons.event_available_outlined,
                   date: controller.googleLastDonationDate,
                   onTap: () => _pickDate(context, false),
@@ -623,6 +640,7 @@ class _TextInput extends StatelessWidget {
     required this.controller,
     this.keyboardType,
     this.validator,
+    this.isRequired = false,
   });
 
   final String label;
@@ -630,6 +648,7 @@ class _TextInput extends StatelessWidget {
   final TextEditingController controller;
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
+  final bool isRequired;
 
   @override
   Widget build(BuildContext context) {
@@ -637,7 +656,10 @@ class _TextInput extends StatelessWidget {
       controller: controller,
       keyboardType: keyboardType,
       validator: validator,
-      decoration: _inputDecoration(label, icon),
+      decoration: _inputDecoration(
+        isRequired ? "$label *" : label,
+        icon,
+      ),
     );
   }
 }
@@ -747,12 +769,14 @@ class _BloodGroupPicker extends StatelessWidget {
     required this.selected,
     this.errorText,
     this.onSelected,
+    this.isRequired = false,
   });
 
   final List<String> bloodGroups;
   final RxString selected;
   final String? errorText;
   final VoidCallback? onSelected;
+  final bool isRequired;
 
   @override
   Widget build(BuildContext context) {
@@ -762,7 +786,7 @@ class _BloodGroupPicker extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Blood Group",
+          isRequired ? "Blood Group *" : "Blood Group",
           style: TextStyle(
             color: hasError ? Colors.redAccent : Colors.black87,
             fontSize: 14,
@@ -885,6 +909,7 @@ class _DateInput extends StatelessWidget {
     required this.onTap,
     this.isDob = false,
     this.errorText,
+    this.isRequired = false,
   });
 
   final String label;
@@ -893,6 +918,7 @@ class _DateInput extends StatelessWidget {
   final VoidCallback onTap;
   final bool isDob;
   final String? errorText;
+  final bool isRequired;
 
   int? _calculateAge(DateTime? dob) {
     if (dob == null) return null;
@@ -919,7 +945,10 @@ class _DateInput extends StatelessWidget {
             onTap: onTap,
             borderRadius: BorderRadius.circular(8),
             child: InputDecorator(
-              decoration: _inputDecoration(label, icon).copyWith(
+              decoration: _inputDecoration(
+                isRequired ? "$label *" : label,
+                icon,
+              ).copyWith(
                 errorText: hasError ? errorText : null,
               ),
               child: Row(

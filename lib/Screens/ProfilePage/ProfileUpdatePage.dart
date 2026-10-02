@@ -70,6 +70,18 @@ class ProfileUpdatePage extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
             children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  "* Required",
+                  style: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: _panelDecoration().copyWith(
@@ -119,6 +131,7 @@ class ProfileUpdatePage extends StatelessWidget {
                   children: [
                     _TextInput(
                       label: "Name",
+                      isRequired: true,
                       icon: Icons.person_outline,
                       controller: controller.googleName,
                       validator: (value) =>
@@ -132,10 +145,9 @@ class ProfileUpdatePage extends StatelessWidget {
                       icon: Icons.location_on_outlined,
                       controller: controller.googlePlace,
                       validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return "Place is required";
-                        }
-                        if (value.trim().length < 3) {
+                        final trimmed = value?.trim() ?? "";
+                        if (trimmed.isEmpty) return null;
+                        if (trimmed.length < 3) {
                           return "Enter a valid place";
                         }
                         return null;
@@ -144,6 +156,7 @@ class ProfileUpdatePage extends StatelessWidget {
                     const SizedBox(height: 12),
                     _DateInput(
                       label: "Date of Birth",
+                      isRequired: true,
                       icon: Icons.cake_outlined,
                       date: controller.googleDateOfBirth,
                       onTap: () => _pickDate(context, true),
@@ -182,6 +195,7 @@ class ProfileUpdatePage extends StatelessWidget {
                     _BloodGroupPicker(
                       bloodGroups: _bloodGroups,
                       selected: controller.googleBloodGroup,
+                      isRequired: true,
                     ),
                     const SizedBox(height: 18),
                     // _DateInput(
@@ -215,8 +229,7 @@ class ProfileUpdatePage extends StatelessWidget {
                         ),
                         onPressed: () {
                           if (_formKey.currentState!.validate() &&
-                              controller.googleBloodGroup.value.isNotEmpty &&
-                              controller.googleGender.value.isNotEmpty) {
+                              controller.googleBloodGroup.value.isNotEmpty) {
                             controller.updateProfile();
                           }
                         },
@@ -292,28 +305,38 @@ class _TextInput extends StatelessWidget {
     required this.icon,
     required this.controller,
     this.validator,
+    this.isRequired = false,
   });
 
   final String label;
   final IconData icon;
   final TextEditingController controller;
   final String? Function(String?)? validator;
+  final bool isRequired;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
       validator: validator,
-      decoration: _inputDecoration(label, icon),
+      decoration: _inputDecoration(
+        isRequired ? "$label *" : label,
+        icon,
+      ),
     );
   }
 }
 
 class _BloodGroupPicker extends StatelessWidget {
-  const _BloodGroupPicker({required this.bloodGroups, required this.selected});
+  const _BloodGroupPicker({
+    required this.bloodGroups,
+    required this.selected,
+    this.isRequired = false,
+  });
 
   final List<String> bloodGroups;
   final RxString selected;
+  final bool isRequired;
 
   @override
   Widget build(BuildContext context) {
@@ -324,6 +347,15 @@ class _BloodGroupPicker extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              isRequired ? "Blood Group *" : "Blood Group",
+              style: const TextStyle(
+                color: Colors.black87,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
             Obx(() {
               final selectedBloodGroup = selected.value;
               return GridView.builder(
@@ -401,7 +433,6 @@ class _ChoiceRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FormField<String>(
-      validator: (_) => selected.value.isEmpty ? "$label is required" : null,
       builder: (field) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -472,6 +503,7 @@ class _DateInput extends StatelessWidget {
     required this.date,
     required this.onTap,
     this.validator,
+    this.isRequired = false,
   });
 
   final String label;
@@ -479,6 +511,7 @@ class _DateInput extends StatelessWidget {
   final Rxn<DateTime> date;
   final VoidCallback onTap;
   final String? Function()? validator;
+  final bool isRequired;
 
   @override
   Widget build(BuildContext context) {
@@ -492,7 +525,7 @@ class _DateInput extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             child: InputDecorator(
               decoration: _inputDecoration(
-                label,
+                isRequired ? "$label *" : label,
                 icon,
               ).copyWith(errorText: field.errorText),
               child: Text(

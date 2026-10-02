@@ -797,9 +797,7 @@ class AuthController extends GetxController {
     final missing = <String>[];
     if (_isBlank(currentUser.name)) missing.add("name");
     if (currentUser.dateOfBirth == null) missing.add("dateOfBirth");
-    if (_isBlank(currentUser.gender)) missing.add("gender");
     if (_isBlank(currentUser.phone)) missing.add("phone");
-    if (_isBlank(currentUser.place)) missing.add("place");
     if (_isBlank(currentUser.bloodGroup)) missing.add("bloodGroup");
 
     if (missing.isEmpty) {
@@ -1066,7 +1064,7 @@ class AuthController extends GetxController {
     const endpoint = "/api/v1/user/google-complete-profile";
     isGoogleProfileLoading.value = true;
     try {
-      if (!_validateRequiredProofSelection()) {
+      if (!_validateProofSelection()) {
         return;
       }
 
@@ -1131,16 +1129,21 @@ class AuthController extends GetxController {
   }
 
   Map<String, dynamic> _googleProfileData() {
+    final phone = googlePhone.text.trim();
+    final gender = googleGender.value.trim();
+    final address = googleAddress.text.trim();
+    final place = googlePlace.text.trim();
+
     return {
-      "phone": googlePhone.text.trim(),
       "name": googleName.text.trim(),
+      "phone": phone,
       "dateOfBirth": googleDateOfBirth.value?.toIso8601String(),
-      "gender": googleGender.value.toLowerCase(),
-      "address": googleAddress.text.trim(),
-      "place": googlePlace.text.trim(),
       "bloodGroup": googleBloodGroup.value.trim().toUpperCase(),
       "isDonor": googleIsDonor.value,
       "lastDonationDate": googleLastDonationDate.value?.toIso8601String(),
+      if (gender.isNotEmpty) "gender": gender.toLowerCase(),
+      if (address.isNotEmpty) "address": address,
+      if (place.isNotEmpty) "place": place,
     };
   }
 
@@ -1181,12 +1184,14 @@ class AuthController extends GetxController {
       }
 
       final user = userModel?.user;
+      final place = googlePlace.text.trim();
+      final gender = googleGender.value.trim();
       final data = {
         "name": googleName.text.trim(),
         "bloodGroup": googleBloodGroup.value.trim().toUpperCase(),
-        "place": googlePlace.text.trim(),
         "dateOfBirth": googleDateOfBirth.value?.toIso8601String(),
-        "gender": googleGender.value.toLowerCase(),
+        if (place.isNotEmpty) "place": place,
+        if (gender.isNotEmpty) "gender": gender.toLowerCase(),
         if (user?.isDonor != null) "isDonor": user?.isDonor,
         "lastDonationDate": googleLastDonationDate.value?.toIso8601String(),
       };
@@ -1246,20 +1251,6 @@ class AuthController extends GetxController {
     _showAuthError(
       "Proof documents incomplete",
       "Please select both proof front and proof back files.",
-    );
-    return false;
-  }
-
-  bool _validateRequiredProofSelection() {
-    final hasFront = proofFrontFile.value != null;
-    final hasBack = proofBackFile.value != null;
-    if (hasFront && hasBack) {
-      return true;
-    }
-
-    _showAuthError(
-      "ID proof required",
-      "Please upload ID proof front and back.",
     );
     return false;
   }

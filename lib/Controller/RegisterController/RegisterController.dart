@@ -33,7 +33,6 @@ class RegisterController extends GetxController {
         passwordController.text.isEmpty ||
         phoneController.text.isEmpty ||
         bloodGroupController.text.isEmpty ||
-        locationController.text.isEmpty ||
         dob.value == null) {
       return false;
     }
@@ -41,18 +40,20 @@ class RegisterController extends GetxController {
   }
 
   void register() {
+    final place = locationController.text.trim();
+    final genderValue = gender.value.trim();
 
     // Example: Collect data
     final data = {
       "name": usernameController.text,
       "password": passwordController.text,
-      "phone": phoneController.text,
+      "phone": phoneController.text.trim(),
       "bloodGroup": bloodGroupController.text.toUpperCase(),
-      "place": locationController.text,
-      'gender': gender.value.toLowerCase(),
       "dateOfBirth": dob.value?.toIso8601String(),
       "lastDonatedDate": lastDonatedDate.value?.toIso8601String(),
       "isDonor": isDonor.value,
+      if (place.isNotEmpty) "place": place,
+      if (genderValue.isNotEmpty) 'gender': genderValue.toLowerCase(),
     };
     registerUser(data);
     print(data); // you can call API here

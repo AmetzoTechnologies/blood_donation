@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Blood Donation</string>
+	<string>Donormate</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -47,15 +47,11 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>This app needs camera access to take a profile photo.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>This app uses location information to match blood donors with recipients and display nearby blood donation requests in your area.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>This app uses location information to match blood donors with recipients and display nearby blood donation requests in your area.</string>
+	<string>Donormate needs camera access so you can take a profile photo for your donor account.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>This app needs permission to save photos to your library.</string>
+	<string>Donormate needs permission to save photos you choose for your donor profile.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This app needs access to your photo library to let you upload a profile picture.</string>
+	<string>Donormate needs photo library access so you can choose a profile photo for your donor account.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
